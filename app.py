@@ -61,9 +61,7 @@ with tab1:
 
         # 2. 執行全欄位關鍵字搜尋
         if search_keyword:
-            # 建立一個全為 False 的遮罩
             mask = pd.Series(False, index=filtered_df.index)
-            # 讓程式自動巡視所有的欄位，只要有任何一欄符合關鍵字，就抓出來
             for col in filtered_df.columns:
                 mask = mask | filtered_df[col].astype(str).str.contains(search_keyword, case=False, na=False)
             filtered_df = filtered_df[mask]
@@ -136,16 +134,20 @@ with tab2:
     with st.form("add_record_form", clear_on_submit=True):
         st.subheader("📝 填寫現場維修紀錄")
         
+        # 📌 更新：加入 PLC 到部件選項中
         comp_options = [
             "預貼機-投入", "預貼機-排出", 
             "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收",
-            "控制介面 (HMI)", "真空/氣壓系統", "溫控系統", "其他"
+            "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"
         ]
         
         input_date = st.date_input("日期", datetime.now(tz_tw).date())
         input_engineer = st.text_input("工程師", value="何宇")
         input_customer = st.text_input("客戶與廠區 (例如: A客戶 竹科廠)")
-        input_machine = st.selectbox("設備機型", ["CVP-1600SP", "其他"])
+        
+        # 📌 更新：替換為全新的設備機型清單
+        input_machine = st.selectbox("設備機型", ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"])
+        
         input_component = st.selectbox("發生異常的部件", comp_options)
         input_issue = st.text_area("問題描述 (現象、錯誤代碼等)")
         input_solution = st.text_area("解決方案 (參數調整、更換零件等)")
