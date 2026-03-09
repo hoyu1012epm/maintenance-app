@@ -43,15 +43,13 @@ if not df.empty:
 
 # --- 標題區塊：加入公司 LOGO ---
 col1, col2 = st.columns([1, 6]) # 建立兩個直行，比例為 1:6
-
 with col1:
     try:
-        # 讀取你上傳的 logo.png，寬度設為 50 像素 (可自由修改數字)
+        # 讀取你上傳的 logo.png，寬度設為 100 像素
         st.image("logo.png", width=100) 
     except:
-        # 如果萬一找不到圖片，先用原來的板手墊檔，避免網頁壞掉
+        # 如果萬一找不到圖片，先用原來的板手墊檔
         st.title("🔧") 
-
 with col2:
     st.title("設備維修知識庫")
 # -----------------------------
@@ -68,7 +66,7 @@ with tab1:
     filtered_df = df.copy()
 
     if not filtered_df.empty:
-        # 📌 新增：動態將 Date 欄位 (2026-03-09) 轉換成年月格式 (26/03) 供分類使用
+        # 動態將 Date 欄位 (2026-03-09) 轉換成年月格式 (26/03) 供分類使用
         try:
             filtered_df['YearMonth'] = pd.to_datetime(filtered_df['Date']).dt.strftime('%y/%m')
         except Exception:
@@ -82,7 +80,6 @@ with tab1:
             filtered_df = filtered_df[mask]
 
         st.write("---")
-        # 📌 修正：加入「依建立年月」選項
         group_by_option = st.radio(
             "🗂️ 選擇展開分類方式：",
             ["依建立年月", "依客戶與廠區", "依設備機型", "依設備部件"], 
@@ -90,14 +87,14 @@ with tab1:
         )
 
         group_col_map = {
-            "依建立年月": "YearMonth", # 對應到剛剛動態產生的欄位
+            "依建立年月": "YearMonth", 
             "依客戶與廠區": "Customer",
             "依設備機型": "Machine_Model",
             "依設備部件": "Component" 
         }
         group_col = group_col_map[group_by_option]
 
-        # 注入 Glide 卡片 CSS
+        # 注入 莫蘭迪橙配色 卡片 CSS
         st.markdown("""
         <style>
         .glide-card {
@@ -106,17 +103,19 @@ with tab1:
             border-radius: 12px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.05);
             margin-bottom: 12px;
-            border-left: 6px solid #00c4b4;
+            border-left: 6px solid #D5896F; /* 莫蘭迪主色調：質感的陶土橙 */
         }
         .glide-title { font-size: 16px; font-weight: 700; color: #1f2937; margin-bottom: 4px; }
-        .glide-subtitle { font-size: 14px; color: #4b5563; margin-bottom: 10px; line-height: 1.4; }
+        .glide-subtitle { font-size: 14px; color: #5C4A44; margin-bottom: 10px; line-height: 1.4; }
         .glide-tag {
-            background-color: #f3f4f6; color: #374151; padding: 3px 8px;
+            background-color: #F4EBE6; /* 暖燕麥灰底色 */
+            color: #6B5B56; /* 莫蘭迪深棕灰 */
+            padding: 3px 8px;
             border-radius: 12px; font-size: 11px; display: inline-block;
             margin-right: 4px; margin-bottom: 6px;
         }
         .glide-solution {
-            font-size: 13px; color: #065f46; background-color: #d1fae5;
+            font-size: 13px; color: #8C4B31; background-color: #FAEBE6;
             padding: 8px; border-radius: 6px; margin-top: 6px;
         }
         </style>
@@ -132,11 +131,10 @@ with tab1:
 
         unique_groups = filtered_df[group_col].unique().tolist()
 
-        # 📌 修正：新增年月排序邏輯 (越新的月份排在越上面)
         if group_col == "Component":
             unique_groups.sort(key=lambda x: custom_component_order.index(x) if x in custom_component_order else 999)
         elif group_col == "YearMonth":
-            unique_groups.sort(reverse=True) # 降冪排序，讓 26/03 排在 26/02 前面
+            unique_groups.sort(reverse=True) 
         else:
             unique_groups.sort(key=lambda x: str(x))
 
@@ -219,13 +217,3 @@ with tab2:
     if st.session_state.success_msg:
         st.success(st.session_state.success_msg)
         st.session_state.success_msg = ""
-
-
-
-
-
-
-
-
-
-
