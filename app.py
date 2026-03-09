@@ -3,10 +3,9 @@ import pandas as pd
 import json
 import gspread
 from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
 from datetime import datetime, timedelta, timezone
-import io
+import requests
+import base64
 
 # 設定台灣時區 (UTC+8)
 tz_tw = timezone(timedelta(hours=8))
@@ -17,45 +16,32 @@ if "form_key" not in st.session_state:
 if "success_msg" not in st.session_state:
     st.session_state.success_msg = ""
 
-# 📌 這是你的 Google Drive 維修照片庫 ID
-FOLDER_ID = "1ayZ2qhsu5DMe9JRxkP0AO_QHesalpIdT"
+# 📌 請把剛剛複製的 Google Apps Script 網址貼在下面的雙引號裡面：
+GAS_URL = "https://script.google.com/macros/s/AKfycbxEVcNlZjjFEmkQmH8Ft-P8mVTSQllsfFF0Khf4YE8lmuOvRQBU8lzocmFs04oMm6g5/exec"
 
-# 1. 取得金鑰並連線到 Google Sheets & Google Drive
+# 1. 取得金鑰並連線到 Google Sheets (現在不用管 Drive API 了！)
 @st.cache_resource 
-def init_connections():
+def init_connection():
     creds_dict = json.loads(st.secrets["gcp_credentials"])
-    scopes = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-    
-    # 連線到 Google Sheets
     gc = gspread.authorize(creds)
     sheet = gc.open("設備維修知識庫").sheet1
-    
-    # 連線到 Google Drive
-    drive_service = build('drive', 'v3', credentials=creds)
-    
-    return sheet, drive_service
+    return sheet
 
-sheet, drive_service = init_connections()
+sheet = init_connection()
 
-# 2. 上傳照片至 Google Drive 的專屬函式
+# 2. 透過秘密通道 (GAS) 上傳照片
 def upload_image(image_file, file_name):
-    file_metadata = {
-        'name': file_name,
-        'parents': [FOLDER_ID]
+    base64_image = base64.b64encode(image_file.getvalue()).decode('utf-8')
+    payload = {
+        "fileName": file_name,
+        "mimeType": image_file.type,
+        "fileData": base64_image
     }
-    media = MediaIoBaseUpload(io.BytesIO(image_file.getvalue()), 
-                              mimetype=image_file.type, 
-                              resumable=True)
-    file = drive_service.files().create(body=file_metadata, 
-                                        media_body=media, 
-                                        fields='id').execute()
-    file_id = file.get('id')
-    # 回傳可以直接在網頁上顯示的圖片網址
-    return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
+    # 把資料傳送到你的 Google Apps Script 接收站
+    response = requests.post(GAS_URL, data=payload)
+    return response.text 
 
 # 3. 讀取試算表資料
 @st.cache_data(ttl=60)
@@ -68,10 +54,9 @@ if not df.empty:
     df = df.iloc[::-1].reset_index(drop=True)
 
 # --- 標題區塊：完美對齊版 ---
-col1, col2 = st.columns([1, 5]) 
+col1, col2 = st.columns([1, 5])
 with col1:
     try:
-        # 固定寬度，不讓它亂跑
         st.image("logo.png", width=80) 
     except:
         st.title("🔧") 
@@ -151,7 +136,6 @@ with tab1:
             
             with st.expander(f"📁 {display_name} (共 {len(group_data)} 筆)"):
                 for index, row in group_data.iterrows():
-                    # 判斷有無照片網址，如果有就顯示圖片
                     photo_html = ""
                     if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http"):
                         photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">'
@@ -193,7 +177,6 @@ with tab2:
         input_issue = st.text_area("問題描述 (現象、錯誤代碼等)")
         input_solution = st.text_area("解決方案 (參數調整、更換零件等)")
         
-        # 📌 新增：純粹的照片上傳區塊 (沒有相機功能)
         st.write("---")
         upload_file = st.file_uploader("🖼️ 附加現場照片 (選填)", type=['jpg', 'png', 'jpeg'])
         
@@ -212,18 +195,14 @@ with tab2:
                 st.error(f"⚠️ 提交失敗！請補充以下未填寫的欄位：{', '.join(missing_fields)}")
             else:
                 try:
-                    # 顯示轉圈圈動畫，讓使用者知道正在處理上傳
                     with st.spinner("正在安全寫入資料與上傳照片..."):
                         log_id = datetime.now(tz_tw).strftime("REP-%y%m%d-%H%M%S")
                         date_str = input_date.strftime("%Y-%m-%d")
                         
-                        # 如果有上傳照片，就執行上傳並取得網址；沒有就留空
                         photo_url = ""
                         if upload_file is not None:
-                            # 檔名自動取為 單號.副檔名
                             photo_url = upload_image(upload_file, f"{log_id}.jpg")
                         
-                        # 📌 注意：多了一個 photo_url 寫入 Google Sheets
                         new_row = [
                             log_id, date_str, input_engineer, 
                             input_customer, input_machine, input_component, 
@@ -238,12 +217,8 @@ with tab2:
                         st.rerun()
                         
                 except Exception as e:
-                    st.error(f"寫入失敗，請檢查連線或權限設定：{e}")
+                    st.error(f"寫入失敗，請檢查連線：{e}")
                     
     if st.session_state.success_msg:
         st.success(st.session_state.success_msg)
         st.session_state.success_msg = ""
-
-
-
-
