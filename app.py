@@ -47,7 +47,7 @@ col1, col2 = st.columns([1, 6]) # 建立兩個直行，比例為 1:6
 with col1:
     try:
         # 讀取你上傳的 logo.png，寬度設為 50 像素 (可自由修改數字)
-        st.image("logo.png", width=200) 
+        st.image("logo.png", width=400) 
     except:
         # 如果萬一找不到圖片，先用原來的板手墊檔，避免網頁壞掉
         st.title("🔧") 
@@ -219,6 +219,7 @@ with tab2:
     if st.session_state.success_msg:
         st.success(st.session_state.success_msg)
         st.session_state.success_msg = ""
+
 
 
 
