@@ -19,16 +19,20 @@ if "success_msg" not in st.session_state:
 # 📌 請把剛剛複製的 Google Apps Script 網址貼在下面的雙引號裡面：
 GAS_URL = "https://script.google.com/macros/s/AKfycbxEVcNlZjjFEmkQmH8Ft-P8mVTSQllsfFF0Khf4YE8lmuOvRQBU8lzocmFs04oMm6g5/exec"
 
-# 1. 取得金鑰並連線到 Google Sheets (現在不用管 Drive API 了！)
+# 1. 取得金鑰並連線到 Google Sheets
 @st.cache_resource 
 def init_connection():
     creds_dict = json.loads(st.secrets["gcp_credentials"])
-    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+    # 📌 修正：乖乖把 drive 的權限加回來，系統才找得到你的試算表！
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
     creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
     gc = gspread.authorize(creds)
     sheet = gc.open("設備維修知識庫").sheet1
     return sheet
-
+    
 sheet = init_connection()
 
 # 2. 透過秘密通道 (GAS) 上傳照片
@@ -222,3 +226,4 @@ with tab2:
     if st.session_state.success_msg:
         st.success(st.session_state.success_msg)
         st.session_state.success_msg = ""
+
