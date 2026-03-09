@@ -16,14 +16,13 @@ if "form_key" not in st.session_state:
 if "success_msg" not in st.session_state:
     st.session_state.success_msg = ""
 
-# 📌 請把剛剛複製的 Google Apps Script 網址貼在下面的雙引號裡面：
+# 📌 你的 Google Apps Script 專屬接收站網址：
 GAS_URL = "https://script.google.com/macros/s/AKfycbxEVcNlZjjFEmkQmH8Ft-P8mVTSQllsfFF0Khf4YE8lmuOvRQBU8lzocmFs04oMm6g5/exec"
 
 # 1. 取得金鑰並連線到 Google Sheets
 @st.cache_resource 
 def init_connection():
     creds_dict = json.loads(st.secrets["gcp_credentials"])
-    # 📌 修正：乖乖把 drive 的權限加回來，系統才找得到你的試算表！
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
@@ -32,7 +31,7 @@ def init_connection():
     gc = gspread.authorize(creds)
     sheet = gc.open("設備維修知識庫").sheet1
     return sheet
-    
+
 sheet = init_connection()
 
 # 2. 透過秘密通道 (GAS) 上傳照片
@@ -43,7 +42,6 @@ def upload_image(image_file, file_name):
         "mimeType": image_file.type,
         "fileData": base64_image
     }
-    # 把資料傳送到你的 Google Apps Script 接收站
     response = requests.post(GAS_URL, data=payload)
     return response.text 
 
@@ -65,7 +63,6 @@ with col1:
     except:
         st.title("🔧") 
 with col2:
-    # 偷偷用 HTML 把標題往上提，跟 LOGO 齊平
     st.markdown("<h1 style='margin-top: -15px;'>設備維修知識庫</h1>", unsafe_allow_html=True)
 # -----------------------------
 
@@ -145,17 +142,17 @@ with tab1:
                         photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">'
                         
                     st.markdown(f"""
-                    <div class="glide-card">
-                        <div class="glide-title">{row['Component']}</div>
-                        <div class="glide-tag">📅 {row['Date']}</div>
-                        <div class="glide-tag">🏢 {row['Customer']}</div>
-                        <div class="glide-tag">⚙️ {row['Machine_Model']}</div>
-                        <div class="glide-tag">👤 {row['Engineer']}</div>
-                        <div class="glide-subtitle"><b>狀況：</b>{row['Issue_Desc']}</div>
-                        <div class="glide-solution"><b>💡 解法：</b>{row['Solution']}</div>
-                        {photo_html}
-                    </div>
-                    """, unsafe_allow_html=True)
+<div class="glide-card">
+<div class="glide-title">{row['Component']}</div>
+<div class="glide-tag">📅 {row['Date']}</div>
+<div class="glide-tag">🏢 {row['Customer']}</div>
+<div class="glide-tag">⚙️ {row['Machine_Model']}</div>
+<div class="glide-tag">👤 {row['Engineer']}</div>
+<div class="glide-subtitle"><b>狀況：</b>{row['Issue_Desc']}</div>
+<div class="glide-solution"><b>💡 解法：</b>{row['Solution']}</div>
+{photo_html}
+</div>
+""", unsafe_allow_html=True)
 
     else:
         st.warning("目前試算表中沒有資料喔！")
@@ -226,4 +223,3 @@ with tab2:
     if st.session_state.success_msg:
         st.success(st.session_state.success_msg)
         st.session_state.success_msg = ""
-
