@@ -119,7 +119,6 @@ with tab1:
         }
         group_col = group_col_map[group_by_option]
 
-        # 🎨 這裡換成了更輕盈明亮的「奶油杏桃/清透暖橘」配色！
         st.markdown("""
         <style>
         .glide-card { background-color: #ffffff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 12px; border-left: 6px solid #FFA726; }
@@ -242,7 +241,7 @@ with tab2:
         st.session_state.success_msg = ""
 
 # ==========================================
-# 分頁 3：數據分析
+# 分頁 3：數據分析 (防誤觸、乾淨版)
 # ==========================================
 with tab3:
     st.subheader("📈 維修數據統計看板")
@@ -273,11 +272,13 @@ with tab3:
                 names='Machine_Model', 
                 values='Count',
                 hole=0.4, 
-                # 🎨 圖表也換成了更明亮的淺橘色系
                 color_discrete_sequence=px.colors.sequential.YlOrBr[2:] 
             )
-            fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0))
-            st.plotly_chart(fig_pie, use_container_width=True)
+            # 📌 加入 dragmode=False 關閉圖表拖曳功能
+            fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0), dragmode=False)
+            
+            # 📌 加入 config={'displayModeBar': False} 把右上角複雜的工具列隱藏起來
+            st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
 
         with col_chart2:
             st.markdown("##### 🔧 異常部件排行榜")
@@ -290,17 +291,22 @@ with tab3:
                 y='Component',
                 orientation='h', 
                 text='Count',
-                # 🎨 長條圖換成明亮的活力橘
                 color_discrete_sequence=['#FFA726']
             )
             fig_bar.update_traces(textposition='outside')
+            
+            # 📌 鎖定 X/Y 軸不被放大縮小，並關閉拖曳
             fig_bar.update_layout(
-                yaxis={'categoryorder':'total ascending'}, 
+                yaxis={'categoryorder':'total ascending', 'fixedrange': True}, 
+                xaxis={'fixedrange': True},
                 margin=dict(t=0, b=0, l=0, r=0),
                 xaxis_title="報修次數",
-                yaxis_title=""
+                yaxis_title="",
+                dragmode=False
             )
-            st.plotly_chart(fig_bar, use_container_width=True)
+            
+            # 📌 一樣隱藏工具列
+            st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
 
     else:
         st.info("目前系統中還沒有資料，等輸入幾筆維修紀錄後，這裡就會自動變出圖表囉！")
