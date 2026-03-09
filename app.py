@@ -43,7 +43,7 @@ if not df.empty:
 
 # --- 標題區塊：調整欄位比例讓 LOGO 變大 ---
 # 把比例從 [1, 6] 放大成 [1.5, 4]，給左邊的 LOGO 更多空間
-col1, col2 = st.columns([2, 4]) 
+col1, col2 = st.columns([2.5, 4]) 
 
 with col1:
     try:
@@ -219,6 +219,7 @@ with tab2:
     if st.session_state.success_msg:
         st.success(st.session_state.success_msg)
         st.session_state.success_msg = ""
+
 
 
 
