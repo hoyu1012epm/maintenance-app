@@ -3,91 +3,76 @@ import pandas as pd
 import json
 import gspread
 from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
 from datetime import datetime, timedelta, timezone
-import io
 
 # 設定台灣時區 (UTC+8)
 tz_tw = timezone(timedelta(hours=8))
 
-# --- 初始化狀態記憶體 ---
+# --- 初始化表單狀態記憶體 ---
 if "form_key" not in st.session_state:
     st.session_state.form_key = 0
 if "success_msg" not in st.session_state:
     st.session_state.success_msg = ""
 
-# 📌 填入你的 Google Drive 資料夾 ID
-FOLDER_ID = "1ayZ2qhsu5DMe9JRxkP0AO_QHesalpIdT" 
-
-# 1. 取得金鑰並連線到 Google 服務
+# 1. 取得金鑰並連線到 Google Sheets
 @st.cache_resource 
-def init_connections():
+def init_connection():
     creds_dict = json.loads(st.secrets["gcp_credentials"])
     scopes = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
     creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
-    
-    # Sheets 連線
-    gc = gspread.authorize(creds)
-    sheet = gc.open("設備維修知識庫").sheet1
-    
-    # Drive 連線 (用於上傳照片)
-    drive_service = build('drive', 'v3', credentials=creds)
-    
-    return sheet, drive_service
+    client = gspread.authorize(creds)
+    return client
 
-sheet, drive_service = init_connections()
+client = init_connection()
+sheet = client.open("設備維修知識庫").sheet1
 
-# 2. 上傳照片至 Google Drive 的函式
-def upload_image(image_file, file_name):
-    file_metadata = {
-        'name': file_name,
-        'parents': [FOLDER_ID]
-    }
-    media = MediaIoBaseUpload(io.BytesIO(image_file.getvalue()), 
-                              mimetype='image/jpeg', 
-                              resumable=True)
-    file = drive_service.files().create(body=file_metadata, 
-                                        media_body=media, 
-                                        fields='id').execute()
-    file_id = file.get('id')
-    # 回傳縮圖/預覽用的直連網址
-    return f"https://drive.google.com/thumbnail?id={file_id}&sz=w1000"
-
-# 3. 讀取試算表資料
+# 2. 讀取試算表資料
 @st.cache_data(ttl=60)
 def load_data():
     data = sheet.get_all_records()
     return pd.DataFrame(data)
 
 df = load_data()
+
+# 將資料表上下顛倒，確保最新寫入的紀錄會排在最上面
 if not df.empty:
     df = df.iloc[::-1].reset_index(drop=True)
 
-# --- 標題區塊 ---
-col_l, col_r = st.columns([1, 6])
-with col_l:
-    try: st.image("logo.png", width=100)
-    except: st.title("🔧")
-with col_r:
+# --- 標題區塊：加入公司 LOGO ---
+col1, col2 = st.columns([1, 6]) # 建立兩個直行，比例為 1:6
+with col1:
+    try:
+        # 讀取你上傳的 logo.png，寬度設為 100 像素
+        st.image("logo.png", width=100) 
+    except:
+        # 如果萬一找不到圖片，先用原來的板手墊檔
+        st.title("🔧") 
+with col2:
     st.title("設備維修知識庫")
+# -----------------------------
 
+# 建立兩個分頁 (Tabs)
 tab1, tab2 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄"])
 
 # ==========================================
-# 分頁 1：查詢紀錄 (支援顯示照片)
+# 分頁 1：查詢紀錄 
 # ==========================================
 with tab1:
     search_keyword = st.text_input("🔍 全域搜尋 (例如: 日期, 廠區, 問題 ... 等 關鍵字)")
+
     filtered_df = df.copy()
 
     if not filtered_df.empty:
-        try: filtered_df['YearMonth'] = pd.to_datetime(filtered_df['Date']).dt.strftime('%y/%m')
-        except: filtered_df['YearMonth'] = "未知時間"
+        # 動態將 Date 欄位 (2026-03-09) 轉換成年月格式 (26/03) 供分類使用
+        try:
+            filtered_df['YearMonth'] = pd.to_datetime(filtered_df['Date']).dt.strftime('%y/%m')
+        except Exception:
+            filtered_df['YearMonth'] = "未知時間"
 
+        # 執行全欄位關鍵字搜尋
         if search_keyword:
             mask = pd.Series(False, index=filtered_df.index)
             for col in filtered_df.columns:
@@ -95,105 +80,140 @@ with tab1:
             filtered_df = filtered_df[mask]
 
         st.write("---")
-        group_by_option = st.radio("🗂️ 選擇展開分類方式：", ["依建立年月", "依客戶與廠區", "依設備機型", "依設備部件"], horizontal=True)
-        
-        group_col_map = {"依建立年月": "YearMonth", "依客戶與廠區": "Customer", "依設備機型": "Machine_Model", "依設備部件": "Component"}
+        group_by_option = st.radio(
+            "🗂️ 選擇展開分類方式：",
+            ["依建立年月", "依客戶與廠區", "依設備機型", "依設備部件"], 
+            horizontal=True
+        )
+
+        group_col_map = {
+            "依建立年月": "YearMonth", 
+            "依客戶與廠區": "Customer",
+            "依設備機型": "Machine_Model",
+            "依設備部件": "Component" 
+        }
         group_col = group_col_map[group_by_option]
 
+        # 注入 莫蘭迪橙配色 卡片 CSS
         st.markdown("""
         <style>
-        .glide-card { background-color: #ffffff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 12px; border-left: 6px solid #D5896F; }
+        .glide-card {
+            background-color: #ffffff;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 12px;
+            border-left: 6px solid #D5896F; /* 莫蘭迪主色調：質感的陶土橙 */
+        }
         .glide-title { font-size: 16px; font-weight: 700; color: #1f2937; margin-bottom: 4px; }
         .glide-subtitle { font-size: 14px; color: #5C4A44; margin-bottom: 10px; line-height: 1.4; }
-        .glide-tag { background-color: #F4EBE6; color: #6B5B56; padding: 3px 8px; border-radius: 12px; font-size: 11px; display: inline-block; margin-right: 4px; margin-bottom: 6px; }
-        .glide-solution { font-size: 13px; color: #8C4B31; background-color: #FAEBE6; padding: 8px; border-radius: 6px; margin-top: 6px; }
-        .glide-img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #eee; }
+        .glide-tag {
+            background-color: #F4EBE6; /* 暖燕麥灰底色 */
+            color: #6B5B56; /* 莫蘭迪深棕灰 */
+            padding: 3px 8px;
+            border-radius: 12px; font-size: 11px; display: inline-block;
+            margin-right: 4px; margin-bottom: 6px;
+        }
+        .glide-solution {
+            font-size: 13px; color: #8C4B31; background-color: #FAEBE6;
+            padding: 8px; border-radius: 6px; margin-top: 6px;
+        }
         </style>
         """, unsafe_allow_html=True)
 
+        st.caption(f"🔍 找到 {len(filtered_df)} 筆相關紀錄")
+
+        custom_component_order = [
+            "預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", 
+            "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", 
+            "PLC", "真空/氣壓系統", "溫控系統", "其他"
+        ]
+
         unique_groups = filtered_df[group_col].unique().tolist()
-        if group_col == "YearMonth": unique_groups.sort(reverse=True)
-        else: unique_groups.sort()
+
+        if group_col == "Component":
+            unique_groups.sort(key=lambda x: custom_component_order.index(x) if x in custom_component_order else 999)
+        elif group_col == "YearMonth":
+            unique_groups.sort(reverse=True) 
+        else:
+            unique_groups.sort(key=lambda x: str(x))
 
         for group_name in unique_groups:
             display_name = group_name if str(group_name).strip() != "" else "未分類/未填寫"
             group_data = filtered_df[filtered_df[group_col] == group_name]
+            
             with st.expander(f"📁 {display_name} (共 {len(group_data)} 筆)"):
                 for index, row in group_data.iterrows():
-                    # 判斷有無照片網址
-                    photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if str(row.get("Photo_URL", "")).startswith("http") else ""
-                    
                     st.markdown(f"""
                     <div class="glide-card">
                         <div class="glide-title">{row['Component']}</div>
                         <div class="glide-tag">📅 {row['Date']}</div>
                         <div class="glide-tag">🏢 {row['Customer']}</div>
+                        <div class="glide-tag">⚙️ {row['Machine_Model']}</div>
                         <div class="glide-tag">👤 {row['Engineer']}</div>
                         <div class="glide-subtitle"><b>狀況：</b>{row['Issue_Desc']}</div>
                         <div class="glide-solution"><b>💡 解法：</b>{row['Solution']}</div>
-                        {photo_html}
                     </div>
                     """, unsafe_allow_html=True)
+
     else:
-        st.warning("目前沒有資料喔！")
+        st.warning("目前試算表中沒有資料喔！")
 
 # ==========================================
-# 分頁 2：新增紀錄 (支援照相上傳)
+# 分頁 2：新增紀錄
 # ==========================================
 with tab2:
-    if st.session_state.success_msg:
-        st.success(st.session_state.success_msg)
-        st.session_state.success_msg = ""
-
     with st.form(f"add_record_form_{st.session_state.form_key}"):
         st.subheader("📝 填寫現場維修紀錄")
+        
+        comp_options = [
+            "預貼機-投入", "預貼機-排出", 
+            "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收",
+            "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"
+        ]
         
         input_date = st.date_input("日期", datetime.now(tz_tw).date())
         input_engineer = st.text_input("填單人員", placeholder="請輸入姓名")
         input_customer = st.text_input("客戶與廠區 (例如: 佰鼎 路竹)")
         input_machine = st.selectbox("設備機型", ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"], index=None, placeholder="請選擇機型...")
-        input_component = st.selectbox("發生異常的部件", ["預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"], index=None, placeholder="請選擇部件...")
-        input_issue = st.text_area("問題描述")
-        input_solution = st.text_area("解決方案")
-        
-        # 📌 新增：現場照片拍攝/上傳
-        st.write("📸 **現場照片紀錄**")
-        photo_file = st.camera_input("拍照 (會直接啟動手機相機)")
-        upload_file = st.file_uploader("或從手機相簿選擇照片", type=['jpg', 'png', 'jpeg'])
+        input_component = st.selectbox("發生異常的部件", comp_options, index=None, placeholder="請選擇部件...")
+        input_issue = st.text_area("問題描述 (現象、錯誤代碼等)")
+        input_solution = st.text_area("解決方案 (參數調整、更換零件等)")
         
         submitted = st.form_submit_button("送出紀錄至雲端")
         
         if submitted:
-            missing = []
-            if not input_engineer: missing.append("【填單人員】")
-            if not input_customer: missing.append("【客戶與廠區】")
-            if not input_machine: missing.append("【設備機型】")
-            if not input_component: missing_fields.append("【部件】")
+            missing_fields = []
+            if not input_engineer: missing_fields.append("【填單人員】")
+            if not input_customer: missing_fields.append("【客戶與廠區】")
+            if not input_machine: missing_fields.append("【設備機型】")
+            if not input_component: missing_fields.append("【發生異常的部件】")
+            if not input_issue: missing_fields.append("【問題描述】")
+            if not input_solution: missing_fields.append("【解決方案】")
             
-            if missing:
-                st.error(f"⚠️ 請補充：{', '.join(missing)}")
+            if missing_fields:
+                st.error(f"⚠️ 提交失敗！請補充以下未填寫的欄位：{', '.join(missing_fields)}")
             else:
+                log_id = datetime.now(tz_tw).strftime("REP-%y%m%d-%H%M%S")
+                date_str = input_date.strftime("%Y-%m-%d")
+                
+                new_row = [
+                    log_id, date_str, input_engineer, 
+                    input_customer, input_machine, input_component, 
+                    input_issue, input_solution
+                ]
+                
                 try:
-                    with st.spinner('正在上傳照片與資料，請稍候...'):
-                        log_id = datetime.now(tz_tw).strftime("REP-%y%m%d-%H%M%S")
-                        
-                        # 處理照片上傳
-                        photo_url = ""
-                        final_photo = photo_file if photo_file else upload_file
-                        if final_photo:
-                            photo_url = upload_image(final_photo, f"{log_id}.jpg")
-                        
-                        new_row = [
-                            log_id, input_date.strftime("%Y-%m-%d"), 
-                            input_engineer, input_customer, input_machine, 
-                            input_component, input_issue, input_solution, 
-                            photo_url # 📌 寫入照片網址
-                        ]
-                        
-                        sheet.append_row(new_row)
-                        st.cache_data.clear()
-                        st.session_state.success_msg = f"✅ 成功送出！單號：{log_id}"
-                        st.session_state.form_key += 1
-                        st.rerun()
+                    sheet.append_row(new_row)
+                    st.cache_data.clear() 
+                    
+                    st.session_state.success_msg = f"✅ 成功寫入資料庫！單號：{log_id}"
+                    st.session_state.form_key += 1
+                    st.rerun()
+                    
                 except Exception as e:
-                    st.error(f"連線失敗：{e}")
+                    st.error(f"寫入失敗，請檢查連線狀態：{e}")
+                    
+    if st.session_state.success_msg:
+        st.success(st.session_state.success_msg)
+        st.session_state.success_msg = ""
