@@ -16,7 +16,7 @@ if "form_key" not in st.session_state:
 if "success_msg" not in st.session_state:
     st.session_state.success_msg = ""
 
-# 📌 你的 Google Apps Script 專屬接收站網址：
+# 📌 你的 Google Apps Script 專屬接收站網址
 GAS_URL = "https://script.google.com/macros/s/AKfycbxEVcNlZjjFEmkQmH8Ft-P8mVTSQllsfFF0Khf4YE8lmuOvRQBU8lzocmFs04oMm6g5/exec"
 
 # 1. 取得金鑰並連線到 Google Sheets
@@ -54,6 +54,23 @@ def load_data():
 df = load_data()
 if not df.empty:
     df = df.iloc[::-1].reset_index(drop=True)
+
+# --- 側邊欄：離線急救包下載 ---
+with st.sidebar:
+    st.markdown("### 📴 無塵室離線準備")
+    st.caption("進無塵室前，請先下載最新紀錄至手機")
+    
+    if not df.empty:
+        # 將資料轉換成 CSV 格式，並加上 utf-8-sig 確保中文在 Excel 不會亂碼
+        csv = df.to_csv(index=False).encode('utf-8-sig')
+        
+        st.download_button(
+            label="📥 下載完整離線版 (CSV)",
+            data=csv,
+            file_name=f"維修知識庫_離線版_{datetime.now(tz_tw).strftime('%Y%m%d')}.csv",
+            mime="text/csv"
+        )
+# -----------------------------
 
 # --- 標題區塊：完美對齊版 ---
 col1, col2 = st.columns([1, 5])
