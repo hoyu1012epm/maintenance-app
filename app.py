@@ -41,7 +41,20 @@ df = load_data()
 if not df.empty:
     df = df.iloc[::-1].reset_index(drop=True)
 
-st.title("🔧 設備維修知識庫")
+# --- 標題區塊：加入公司 LOGO ---
+col1, col2 = st.columns([1, 6]) # 建立兩個直行，比例為 1:6
+
+with col1:
+    try:
+        # 讀取你上傳的 logo.png，寬度設為 50 像素 (可自由修改數字)
+        st.image("logo.png", width=50) 
+    except:
+        # 如果萬一找不到圖片，先用原來的板手墊檔，避免網頁壞掉
+        st.title("🔧") 
+
+with col2:
+    st.title("設備維修知識庫")
+# -----------------------------
 
 # 建立兩個分頁 (Tabs)
 tab1, tab2 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄"])
@@ -206,3 +219,4 @@ with tab2:
     if st.session_state.success_msg:
         st.success(st.session_state.success_msg)
         st.session_state.success_msg = ""
+
