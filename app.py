@@ -85,7 +85,7 @@ with col2:
 tab1, tab2, tab3 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄", "📊 數據分析"])
 
 # ==========================================
-# 分頁 1：查詢紀錄 (恢復為直觀的一目了然版)
+# 分頁 1：查詢紀錄 (直觀的一目了然版)
 # ==========================================
 with tab1:
     search_keyword = st.text_input("🔍 全域搜尋 (例如: 日期, 廠區, 問題 ... 等 關鍵字)")
@@ -119,7 +119,6 @@ with tab1:
         }
         group_col = group_col_map[group_by_option]
 
-        # 🎨 恢復為原本的直觀卡片 CSS
         st.markdown("""
         <style>
         .glide-card { background-color: #ffffff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 12px; border-left: 6px solid #FFA726; }
@@ -158,7 +157,6 @@ with tab1:
                     if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http"):
                         photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">'
                         
-                    # 📌 恢復完全展開的 HTML 結構 (靠左對齊防跑版)
                     st.markdown(f"""
 <div class="glide-card">
 <div class="glide-title">{row['Component']}</div>
@@ -198,3 +196,113 @@ with tab2:
         
         st.write("---")
         upload_file = st.file_uploader("🖼️ 附加現場照片 (選填)", type=['jpg', 'png', 'jpeg'])
+        
+        # 👇 就是這一行，它的縮排必須跟上面的 input_xxx 保持一致！
+        submitted = st.form_submit_button("送出紀錄至雲端")
+        
+        if submitted:
+            missing_fields = []
+            if not input_engineer: missing_fields.append("【填單人員】")
+            if not input_customer: missing_fields.append("【客戶與廠區】")
+            if not input_machine: missing_fields.append("【設備機型】")
+            if not input_component: missing_fields.append("【發生異常的部件】")
+            if not input_issue: missing_fields.append("【問題描述】")
+            if not input_solution: missing_fields.append("【解決方案】")
+            
+            if missing_fields:
+                st.error(f"⚠️ 提交失敗！請補充以下未填寫的欄位：{', '.join(missing_fields)}")
+            else:
+                try:
+                    with st.spinner("正在安全寫入資料與上傳照片..."):
+                        log_id = datetime.now(tz_tw).strftime("REP-%y%m%d-%H%M%S")
+                        date_str = input_date.strftime("%Y-%m-%d")
+                        
+                        photo_url = ""
+                        if upload_file is not None:
+                            photo_url = upload_image(upload_file, f"{log_id}.jpg")
+                        
+                        new_row = [
+                            log_id, date_str, input_engineer, 
+                            input_customer, input_machine, input_component, 
+                            input_issue, input_solution, photo_url
+                        ]
+                        
+                        sheet.append_row(new_row)
+                        st.cache_data.clear() 
+                        
+                        st.session_state.success_msg = f"✅ 成功寫入資料庫！單號：{log_id}"
+                        st.session_state.form_key += 1
+                        st.rerun()
+                        
+                except Exception as e:
+                    st.error(f"寫入失敗，請檢查連線：{e}")
+                    
+    if st.session_state.success_msg:
+        st.success(st.session_state.success_msg)
+        st.session_state.success_msg = ""
+
+# ==========================================
+# 分頁 3：數據分析
+# ==========================================
+with tab3:
+    st.subheader("📈 維修數據統計看板")
+    
+    if not df.empty:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("累積維修總件數", f"{len(df)} 件")
+        with col2:
+            current_month = datetime.now(tz_tw).strftime("%Y-%m")
+            this_month_count = df[df['Date'].str.startswith(current_month, na=False)].shape[0]
+            st.metric("本月新增件數", f"{this_month_count} 件")
+        with col3:
+            unique_machines = df['Machine_Model'].nunique()
+            st.metric("涵蓋機型數量", f"{unique_machines} 種")
+            
+        st.write("---")
+        
+        col_chart1, col_chart2 = st.columns(2)
+        
+        with col_chart1:
+            st.markdown("##### ⚙️ 各機型報修佔比")
+            machine_counts = df['Machine_Model'].value_counts().reset_index()
+            machine_counts.columns = ['機型', '次數']
+            
+            fig_pie = px.pie(
+                machine_counts, 
+                names='機型', 
+                values='次數', 
+                hole=0.4, 
+                color_discrete_sequence=px.colors.sequential.YlOrBr[2:] 
+            )
+            fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0), dragmode=False)
+            st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
+
+        with col_chart2:
+            st.markdown("##### 🔧 異常部件排行榜")
+            comp_counts = df['Component'].value_counts().reset_index()
+            comp_counts.columns = ['部件', '次數']
+            
+            fig_bar = px.bar(
+                comp_counts, 
+                x='次數', 
+                y='部件', 
+                orientation='h', 
+                text='次數',
+                color_discrete_sequence=['#FFA726']
+            )
+            fig_bar.update_traces(textposition='outside')
+            
+            fig_bar.update_layout(
+                yaxis={'categoryorder':'total ascending', 'fixedrange': True}, 
+                xaxis={'fixedrange': True},
+                margin=dict(t=0, b=0, l=0, r=0),
+                xaxis_title="報修次數",
+                yaxis_title="",
+                dragmode=False
+            )
+            
+            st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
+
+    else:
+        st.info("目前系統中還沒有資料，等輸入幾筆維修紀錄後，這裡就會自動變出圖表囉！")
