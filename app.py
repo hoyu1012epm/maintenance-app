@@ -134,7 +134,6 @@ with tab2:
     with st.form("add_record_form", clear_on_submit=True):
         st.subheader("📝 填寫現場維修紀錄")
         
-        # 📌 更新：加入 PLC 到部件選項中
         comp_options = [
             "預貼機-投入", "預貼機-排出", 
             "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收",
@@ -142,21 +141,26 @@ with tab2:
         ]
         
         input_date = st.date_input("日期", datetime.now(tz_tw).date())
-        input_engineer = st.text_input("工程師", value="何宇")
-        input_customer = st.text_input("客戶與廠區 (例如: A客戶 竹科廠)")
         
-        # 📌 更新：替換為全新的設備機型清單
-        input_machine = st.selectbox("設備機型", ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"])
+        # 📌 修正 1：改為填單人員，且不預設姓名
+        input_engineer = st.text_input("填單人員", placeholder="請輸入姓名")
         
-        input_component = st.selectbox("發生異常的部件", comp_options)
+        # 📌 修正 2：更新客戶與廠區的備註範例
+        input_customer = st.text_input("客戶與廠區 (例如: 佰鼎 路竹)")
+        
+        # 📌 修正 3 & 4：設定 index=None 讓下拉選單預設保持空白
+        input_machine = st.selectbox("設備機型", ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"], index=None, placeholder="請選擇機型...")
+        input_component = st.selectbox("發生異常的部件", comp_options, index=None, placeholder="請選擇部件...")
+        
         input_issue = st.text_area("問題描述 (現象、錯誤代碼等)")
         input_solution = st.text_area("解決方案 (參數調整、更換零件等)")
         
         submitted = st.form_submit_button("送出紀錄至雲端")
         
         if submitted:
-            if not input_customer or not input_issue or not input_solution:
-                st.error("⚠️ 請確認『客戶』、『問題描述』與『解決方案』都已填寫喔！")
+            # 📌 修正 5：檢查「所有」欄位是否都有填寫 (包含下拉選單不能為空白)
+            if not input_engineer or not input_customer or not input_machine or not input_component or not input_issue or not input_solution:
+                st.error("⚠️ 請確認表格內『所有內容』都已填寫完畢喔！")
             else:
                 log_id = datetime.now(tz_tw).strftime("REP-%Y%m%d-%H%M")
                 date_str = input_date.strftime("%Y-%m-%d")
