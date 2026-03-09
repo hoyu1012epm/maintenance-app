@@ -72,7 +72,7 @@ col1, col2 = st.columns([1, 5])
 with col1:
     try:
         # 固定寬度，不讓它亂跑
-        st.image("logo.png", width=140) 
+        st.image("logo.png", width=100) 
     except:
         st.title("🔧") 
 with col2:
@@ -243,5 +243,6 @@ with tab2:
     if st.session_state.success_msg:
         st.success(st.session_state.success_msg)
         st.session_state.success_msg = ""
+
 
 
