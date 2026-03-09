@@ -132,16 +132,9 @@ with tab1:
         st.warning("目前試算表中沒有資料喔！")
 
 # ==========================================
-# 分頁 2：新增紀錄 (導入精準驗證與狀態保留)
+# 分頁 2：新增紀錄 (優化提示訊息位置)
 # ==========================================
 with tab2:
-    # 📌 顯示成功訊息 (成功送出後才會觸發)
-    if st.session_state.success_msg:
-        st.success(st.session_state.success_msg)
-        # 顯示完立刻清空，避免下次進來還看到舊訊息
-        st.session_state.success_msg = ""
-
-    # 📌 拿掉 clear_on_submit=True，並透過動態 Key 控制表單重置
     with st.form(f"add_record_form_{st.session_state.form_key}"):
         st.subheader("📝 填寫現場維修紀錄")
         
@@ -162,7 +155,6 @@ with tab2:
         submitted = st.form_submit_button("送出紀錄至雲端")
         
         if submitted:
-            # 📌 建立未填寫清單，精準抓出漏掉的欄位
             missing_fields = []
             if not input_engineer: missing_fields.append("【填單人員】")
             if not input_customer: missing_fields.append("【客戶與廠區】")
@@ -171,12 +163,9 @@ with tab2:
             if not input_issue: missing_fields.append("【問題描述】")
             if not input_solution: missing_fields.append("【解決方案】")
             
-            # 📌 判斷邏輯
             if missing_fields:
-                # 顯示具體缺少的欄位，因為表單不會自動清空，你的打字內容都會保留
                 st.error(f"⚠️ 提交失敗！請補充以下未填寫的欄位：{', '.join(missing_fields)}")
             else:
-                # 全部過關，準備寫入
                 log_id = datetime.now(tz_tw).strftime("REP-%Y%m%d-%H%M")
                 date_str = input_date.strftime("%Y-%m-%d")
                 
@@ -188,14 +177,16 @@ with tab2:
                 
                 try:
                     sheet.append_row(new_row)
-                    st.cache_data.clear() # 清空資料快取
+                    st.cache_data.clear() 
                     
-                    # 將成功訊息存入記憶體
                     st.session_state.success_msg = f"✅ 成功寫入資料庫！單號：{log_id}"
-                    # 變更表單 Key，強迫 Streamlit 在下一次載入時產生一張全新的空白表單
                     st.session_state.form_key += 1
-                    # 立即重新整理畫面
                     st.rerun()
                     
                 except Exception as e:
                     st.error(f"寫入失敗，請檢查連線狀態：{e}")
+                    
+    # 📌 顯示成功訊息 (移到表單外面且在最下方)
+    if st.session_state.success_msg:
+        st.success(st.session_state.success_msg)
+        st.session_state.success_msg = ""
