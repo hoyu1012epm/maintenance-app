@@ -166,7 +166,7 @@ with tab2:
             if missing_fields:
                 st.error(f"⚠️ 提交失敗！請補充以下未填寫的欄位：{', '.join(missing_fields)}")
             else:
-                log_id = datetime.now(tz_tw).strftime("REP-%Y%m%d-%H%M")
+                log_id = datetime.now(tz_tw).strftime("REP-%y%m%d-%H%M%S")
                 date_str = input_date.strftime("%Y-%m-%d")
                 
                 new_row = [
@@ -190,3 +190,4 @@ with tab2:
     if st.session_state.success_msg:
         st.success(st.session_state.success_msg)
         st.session_state.success_msg = ""
+
