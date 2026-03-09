@@ -6,6 +6,7 @@ from google.oauth2.service_account import Credentials
 from datetime import datetime, timedelta, timezone
 import requests
 import base64
+import plotly.express as px
 
 # 設定台灣時區 (UTC+8)
 tz_tw = timezone(timedelta(hours=8))
@@ -61,9 +62,7 @@ with st.sidebar:
     st.caption("進無塵室前，請先下載最新紀錄至手機")
     
     if not df.empty:
-        # 將資料轉換成 CSV 格式，並加上 utf-8-sig 確保中文在 Excel 不會亂碼
         csv = df.to_csv(index=False).encode('utf-8-sig')
-        
         st.download_button(
             label="📥 下載完整離線版 (CSV)",
             data=csv,
@@ -83,7 +82,8 @@ with col2:
     st.markdown("<h1 style='margin-top: -15px;'>設備維修知識庫</h1>", unsafe_allow_html=True)
 # -----------------------------
 
-tab1, tab2 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄"])
+# 📌 這次變成三個分頁了！
+tab1, tab2, tab3 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄", "📊 數據分析"])
 
 # ==========================================
 # 分頁 1：查詢紀錄
@@ -240,3 +240,71 @@ with tab2:
     if st.session_state.success_msg:
         st.success(st.session_state.success_msg)
         st.session_state.success_msg = ""
+
+# ==========================================
+# 分頁 3：數據分析 (全新加入！)
+# ==========================================
+with tab3:
+    st.subheader("📈 維修數據統計看板")
+    
+    if not df.empty:
+        # --- 第一區：大數字指標 ---
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("累積維修總件數", f"{len(df)} 件")
+        with col2:
+            current_month = datetime.now(tz_tw).strftime("%Y-%m")
+            this_month_count = df[df['Date'].str.startswith(current_month, na=False)].shape[0]
+            st.metric("本月新增件數", f"{this_month_count} 件")
+        with col3:
+            unique_machines = df['Machine_Model'].nunique()
+            st.metric("涵蓋機型數量", f"{unique_machines} 種")
+            
+        st.write("---")
+        
+        # --- 第二區：圖表分析 ---
+        col_chart1, col_chart2 = st.columns(2)
+        
+        with col_chart1:
+            st.markdown("##### ⚙️ 各機型報修佔比")
+            # 統計機型數量
+            machine_counts = df['Machine_Model'].value_counts().reset_index()
+            machine_counts.columns = ['Machine_Model', 'Count']
+            
+            # 畫圓餅圖
+            fig_pie = px.pie(
+                machine_counts, 
+                names='Machine_Model', 
+                values='Count',
+                hole=0.4, # 變成質感的甜甜圈圖
+                color_discrete_sequence=px.colors.sequential.Oranges_r # 莫蘭迪橘色系
+            )
+            fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0))
+            st.plotly_chart(fig_pie, use_container_width=True)
+
+        with col_chart2:
+            st.markdown("##### 🔧 異常部件排行榜")
+            # 統計部件數量
+            comp_counts = df['Component'].value_counts().reset_index()
+            comp_counts.columns = ['Component', 'Count']
+            
+            # 畫長條圖
+            fig_bar = px.bar(
+                comp_counts, 
+                x='Count', 
+                y='Component',
+                orientation='h', # 橫向長條圖比較好閱讀文字
+                text='Count',
+                color_discrete_sequence=['#D5896F']
+            )
+            fig_bar.update_traces(textposition='outside')
+            fig_bar.update_layout(
+                yaxis={'categoryorder':'total ascending'}, # 數量多的排上面
+                margin=dict(t=0, b=0, l=0, r=0),
+                xaxis_title="報修次數",
+                yaxis_title=""
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+    else:
+        st.info("目前系統中還沒有資料，等輸入幾筆維修紀錄後，這裡就會自動變出圖表囉！")
