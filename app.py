@@ -38,7 +38,7 @@ st.title("🔧 設備維修知識庫")
 tab1, tab2 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄"])
 
 # ==========================================
-# 分頁 1：查詢紀錄 (導入 Glide 卡片美化風格)
+# 分頁 1：查詢紀錄 (導入 Glide 卡片美化風格 + 全域搜尋)
 # ==========================================
 with tab1:
     col1, col2 = st.columns(2)
@@ -50,20 +50,24 @@ with tab1:
         selected_comp = st.selectbox("請選擇設備部件", component_list)
 
     with col2:
-        search_keyword = st.text_input("輸入關鍵字 (例如: 氣泡, Pro-face)")
+        search_keyword = st.text_input("輸入關鍵字 (例如: 何宇, 竹科廠, 氣泡)")
 
     filtered_df = df.copy()
 
     if not filtered_df.empty:
+        # 1. 先做下拉選單的篩選
         if selected_comp != "全部":
             filtered_df = filtered_df[filtered_df["Component"] == selected_comp]
 
+        # 2. 執行全欄位關鍵字搜尋
         if search_keyword:
-            mask = filtered_df["Issue_Desc"].astype(str).str.contains(search_keyword, case=False, na=False) | \
-                   filtered_df["Solution"].astype(str).str.contains(search_keyword, case=False, na=False)
+            # 建立一個全為 False 的遮罩
+            mask = pd.Series(False, index=filtered_df.index)
+            # 讓程式自動巡視所有的欄位，只要有任何一欄符合關鍵字，就抓出來
+            for col in filtered_df.columns:
+                mask = mask | filtered_df[col].astype(str).str.contains(search_keyword, case=False, na=False)
             filtered_df = filtered_df[mask]
 
-        # 注入自訂的 CSS 樣式 (打造 Glide 卡片風格)
         st.markdown("""
         <style>
         .glide-card {
@@ -72,7 +76,7 @@ with tab1:
             border-radius: 12px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.1);
             margin-bottom: 16px;
-            border-left: 6px solid #00c4b4; /* 左側的跳色裝飾線 */
+            border-left: 6px solid #00c4b4;
         }
         .glide-title {
             font-size: 18px;
@@ -107,10 +111,8 @@ with tab1:
         </style>
         """, unsafe_allow_html=True)
 
-        # 顯示搜尋結果數量
         st.caption(f"🔍 找到 {len(filtered_df)} 筆相關紀錄")
 
-        # 使用迴圈，把每一筆資料畫成一張獨立的卡片
         for index, row in filtered_df.iterrows():
             st.markdown(f"""
             <div class="glide-card">
@@ -118,6 +120,7 @@ with tab1:
                 <div class="glide-tag">📅 {row['Date']}</div>
                 <div class="glide-tag">🏢 {row['Customer']}</div>
                 <div class="glide-tag">⚙️ {row['Machine_Model']}</div>
+                <div class="glide-tag">👤 {row['Engineer']}</div>
                 <div class="glide-subtitle"><b>狀況：</b>{row['Issue_Desc']}</div>
                 <div class="glide-solution"><b>💡 解法：</b>{row['Solution']}</div>
             </div>
@@ -168,4 +171,3 @@ with tab2:
                     st.cache_data.clear()
                 except Exception as e:
                     st.error(f"寫入失敗，請檢查連線狀態：{e}")
-
