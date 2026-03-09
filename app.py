@@ -37,7 +37,7 @@ def load_data():
 
 df = load_data()
 
-# 📌 修正：將資料表上下顛倒，確保最新寫入的紀錄會排在最上面
+# 將資料表上下顛倒，確保最新寫入的紀錄會排在最上面
 if not df.empty:
     df = df.iloc[::-1].reset_index(drop=True)
 
@@ -47,7 +47,7 @@ st.title("🔧 設備維修知識庫")
 tab1, tab2 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄"])
 
 # ==========================================
-# 分頁 1：查詢紀錄 (最新紀錄在最上方)
+# 分頁 1：查詢紀錄 
 # ==========================================
 with tab1:
     search_keyword = st.text_input("🔍 全域搜尋 (例如: 日期, 廠區, 問題 ... 等 關鍵字)")
@@ -103,8 +103,25 @@ with tab1:
 
         st.caption(f"🔍 找到 {len(filtered_df)} 筆相關紀錄")
 
-        unique_groups = filtered_df[group_col].unique()
+        # 📌 修正：定義部件的專屬排序清單 (照機台從頭到尾的順序)
+        custom_component_order = [
+            "預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", 
+            "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", 
+            "PLC", "真空/氣壓系統", "溫控系統", "其他"
+        ]
 
+        # 抓出目前篩選結果中，該欄位有哪幾種不重複的值
+        unique_groups = filtered_df[group_col].unique().tolist()
+
+        # 📌 修正：依照自訂順序或是字母順序來排列資料夾
+        if group_col == "Component":
+            # 如果是部件分類，就照我們上面寫的產線順序排；如果遇到沒在清單上的，就把它丟到最後面
+            unique_groups.sort(key=lambda x: custom_component_order.index(x) if x in custom_component_order else 999)
+        else:
+            # 如果是客戶或機型，就按字母順序排
+            unique_groups.sort(key=lambda x: str(x))
+
+        # 產生樹狀資料夾
         for group_name in unique_groups:
             display_name = group_name if str(group_name).strip() != "" else "未分類/未填寫"
             group_data = filtered_df[filtered_df[group_col] == group_name]
