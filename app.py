@@ -3,7 +3,10 @@ import pandas as pd
 import json
 import gspread
 from google.oauth2.service_account import Credentials
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+# 設定台灣時區 (UTC+8)
+tz_tw = timezone(timedelta(hours=8))
 
 # 1. 取得金鑰並連線到 Google Sheets
 @st.cache_resource 
@@ -136,7 +139,7 @@ with tab2:
             "控制介面 (HMI)", "真空/氣壓系統", "溫控系統", "其他"
         ]
         
-        input_date = st.date_input("日期", datetime.today())
+        input_date = st.date_input("日期", datetime.now(tz_tw).date())
         input_engineer = st.text_input("工程師", value="何宇")
         input_customer = st.text_input("客戶與廠區 (例如: A客戶 竹科廠)")
         input_machine = st.selectbox("設備機型", ["CVP-1600SP", "其他"])
@@ -150,7 +153,7 @@ with tab2:
             if not input_customer or not input_issue or not input_solution:
                 st.error("⚠️ 請確認『客戶』、『問題描述』與『解決方案』都已填寫喔！")
             else:
-                log_id = datetime.now().strftime("REP-%Y%m%d-%H%M")
+                log_id = datetime.now(tz_tw).strftime("REP-%Y%m%d-%H%M")
                 date_str = input_date.strftime("%Y-%m-%d")
                 
                 new_row = [
@@ -165,3 +168,4 @@ with tab2:
                     st.cache_data.clear()
                 except Exception as e:
                     st.error(f"寫入失敗，請檢查連線狀態：{e}")
+
