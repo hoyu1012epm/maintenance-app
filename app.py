@@ -82,7 +82,6 @@ with col2:
     st.markdown("<h1 style='margin-top: -15px;'>設備維修知識庫</h1>", unsafe_allow_html=True)
 # -----------------------------
 
-# 📌 這次變成三個分頁了！
 tab1, tab2, tab3 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄", "📊 數據分析"])
 
 # ==========================================
@@ -120,13 +119,14 @@ with tab1:
         }
         group_col = group_col_map[group_by_option]
 
+        # 🎨 這裡換成了更輕盈明亮的「奶油杏桃/清透暖橘」配色！
         st.markdown("""
         <style>
-        .glide-card { background-color: #ffffff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 12px; border-left: 6px solid #D5896F; }
-        .glide-title { font-size: 16px; font-weight: 700; color: #1f2937; margin-bottom: 4px; }
-        .glide-subtitle { font-size: 14px; color: #5C4A44; margin-bottom: 10px; line-height: 1.4; }
-        .glide-tag { background-color: #F4EBE6; color: #6B5B56; padding: 3px 8px; border-radius: 12px; font-size: 11px; display: inline-block; margin-right: 4px; margin-bottom: 6px; }
-        .glide-solution { font-size: 13px; color: #8C4B31; background-color: #FAEBE6; padding: 8px; border-radius: 6px; margin-top: 6px; }
+        .glide-card { background-color: #ffffff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 12px; border-left: 6px solid #FFA726; }
+        .glide-title { font-size: 16px; font-weight: 700; color: #333333; margin-bottom: 4px; }
+        .glide-subtitle { font-size: 14px; color: #555555; margin-bottom: 10px; line-height: 1.4; }
+        .glide-tag { background-color: #FFF3E0; color: #E65100; padding: 3px 8px; border-radius: 12px; font-size: 11px; display: inline-block; margin-right: 4px; margin-bottom: 6px; }
+        .glide-solution { font-size: 13px; color: #D84315; background-color: #FBE9E7; padding: 8px; border-radius: 6px; margin-top: 6px; }
         .glide-img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #eee; }
         </style>
         """, unsafe_allow_html=True)
@@ -242,13 +242,12 @@ with tab2:
         st.session_state.success_msg = ""
 
 # ==========================================
-# 分頁 3：數據分析 (全新加入！)
+# 分頁 3：數據分析
 # ==========================================
 with tab3:
     st.subheader("📈 維修數據統計看板")
     
     if not df.empty:
-        # --- 第一區：大數字指標 ---
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("累積維修總件數", f"{len(df)} 件")
@@ -262,44 +261,41 @@ with tab3:
             
         st.write("---")
         
-        # --- 第二區：圖表分析 ---
         col_chart1, col_chart2 = st.columns(2)
         
         with col_chart1:
             st.markdown("##### ⚙️ 各機型報修佔比")
-            # 統計機型數量
             machine_counts = df['Machine_Model'].value_counts().reset_index()
             machine_counts.columns = ['Machine_Model', 'Count']
             
-            # 畫圓餅圖
             fig_pie = px.pie(
                 machine_counts, 
                 names='Machine_Model', 
                 values='Count',
-                hole=0.4, # 變成質感的甜甜圈圖
-                color_discrete_sequence=px.colors.sequential.Oranges_r # 莫蘭迪橘色系
+                hole=0.4, 
+                # 🎨 圖表也換成了更明亮的淺橘色系
+                color_discrete_sequence=px.colors.sequential.YlOrBr[2:] 
             )
             fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0))
             st.plotly_chart(fig_pie, use_container_width=True)
 
         with col_chart2:
             st.markdown("##### 🔧 異常部件排行榜")
-            # 統計部件數量
             comp_counts = df['Component'].value_counts().reset_index()
             comp_counts.columns = ['Component', 'Count']
             
-            # 畫長條圖
             fig_bar = px.bar(
                 comp_counts, 
                 x='Count', 
                 y='Component',
-                orientation='h', # 橫向長條圖比較好閱讀文字
+                orientation='h', 
                 text='Count',
-                color_discrete_sequence=['#D5896F']
+                # 🎨 長條圖換成明亮的活力橘
+                color_discrete_sequence=['#FFA726']
             )
             fig_bar.update_traces(textposition='outside')
             fig_bar.update_layout(
-                yaxis={'categoryorder':'total ascending'}, # 數量多的排上面
+                yaxis={'categoryorder':'total ascending'}, 
                 margin=dict(t=0, b=0, l=0, r=0),
                 xaxis_title="報修次數",
                 yaxis_title=""
