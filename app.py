@@ -37,17 +37,20 @@ def load_data():
 
 df = load_data()
 
+# 📌 修正：將資料表上下顛倒，確保最新寫入的紀錄會排在最上面
+if not df.empty:
+    df = df.iloc[::-1].reset_index(drop=True)
+
 st.title("🔧 設備維修知識庫")
 
 # 建立兩個分頁 (Tabs)
 tab1, tab2 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄"])
 
 # ==========================================
-# 分頁 1：查詢紀錄 (極簡化介面與文字修正)
+# 分頁 1：查詢紀錄 (最新紀錄在最上方)
 # ==========================================
 with tab1:
-    # 📌 修正 3：拿掉下拉選單，讓搜尋列佔滿全寬，畫面更極簡
-    search_keyword = st.text_input("🔍 全域搜尋 (例如: 日期, 廠區, 問題 ... 等 關鍵字)") # 📌 修正 2：更新備註文字
+    search_keyword = st.text_input("🔍 全域搜尋 (例如: 日期, 廠區, 問題 ... 等 關鍵字)")
 
     filtered_df = df.copy()
 
@@ -60,7 +63,6 @@ with tab1:
             filtered_df = filtered_df[mask]
 
         st.write("---")
-        # 📌 修正 1：更新選項文字為「依設備部件」
         group_by_option = st.radio(
             "🗂️ 選擇展開分類方式：",
             ["依客戶與廠區", "依設備機型", "依設備部件"], 
@@ -70,7 +72,7 @@ with tab1:
         group_col_map = {
             "依客戶與廠區": "Customer",
             "依設備機型": "Machine_Model",
-            "依設備部件": "Component" # 對應更新
+            "依設備部件": "Component" 
         }
         group_col = group_col_map[group_by_option]
 
