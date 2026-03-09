@@ -43,27 +43,15 @@ st.title("🔧 設備維修知識庫")
 tab1, tab2 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄"])
 
 # ==========================================
-# 分頁 1：查詢紀錄 (導入樹狀展開與群組分類)
+# 分頁 1：查詢紀錄 (極簡化介面與文字修正)
 # ==========================================
 with tab1:
-    col1, col2 = st.columns(2)
-    with col1:
-        if not df.empty and "Component" in df.columns:
-            component_list = ["全部"] + list(df["Component"].unique())
-        else:
-            component_list = ["全部"]
-        selected_comp = st.selectbox("第一層篩選：選擇設備部件", component_list)
-
-    with col2:
-        search_keyword = st.text_input("全域搜尋 (例如: 何宇, 竹科廠, 氣泡)")
+    # 📌 修正 3：拿掉下拉選單，讓搜尋列佔滿全寬，畫面更極簡
+    search_keyword = st.text_input("🔍 全域搜尋 (例如: 日期, 廠區, 問題 ... 等 關鍵字)") # 📌 修正 2：更新備註文字
 
     filtered_df = df.copy()
 
     if not filtered_df.empty:
-        # 執行下拉選單篩選
-        if selected_comp != "全部":
-            filtered_df = filtered_df[filtered_df["Component"] == selected_comp]
-
         # 執行全欄位關鍵字搜尋
         if search_keyword:
             mask = pd.Series(False, index=filtered_df.index)
@@ -71,19 +59,18 @@ with tab1:
                 mask = mask | filtered_df[col].astype(str).str.contains(search_keyword, case=False, na=False)
             filtered_df = filtered_df[mask]
 
-        # 📌 新增：分類群組選擇器
         st.write("---")
+        # 📌 修正 1：更新選項文字為「依設備部件」
         group_by_option = st.radio(
             "🗂️ 選擇展開分類方式：",
-            ["依客戶與廠區", "依設備機型", "依異常部件"],
+            ["依客戶與廠區", "依設備機型", "依設備部件"], 
             horizontal=True
         )
 
-        # 將中文選項對應到資料表的欄位名稱
         group_col_map = {
             "依客戶與廠區": "Customer",
             "依設備機型": "Machine_Model",
-            "依異常部件": "Component"
+            "依設備部件": "Component" # 對應更新
         }
         group_col = group_col_map[group_by_option]
 
@@ -114,21 +101,13 @@ with tab1:
 
         st.caption(f"🔍 找到 {len(filtered_df)} 筆相關紀錄")
 
-        # 📌 新增：動態產生樹狀折疊清單 (Expander)
-        # 1. 先抓出目前篩選結果中，該欄位有哪幾種不重複的值
         unique_groups = filtered_df[group_col].unique()
 
-        # 2. 跑迴圈，為每一個種類建立一個資料夾 (Expander)
         for group_name in unique_groups:
-            # 處理空白或未填寫的狀況
             display_name = group_name if str(group_name).strip() != "" else "未分類/未填寫"
-            
-            # 抓出屬於這個資料夾的所有紀錄
             group_data = filtered_df[filtered_df[group_col] == group_name]
             
-            # 建立折疊標題，並顯示裡面有幾筆資料
             with st.expander(f"📁 {display_name} (共 {len(group_data)} 筆)"):
-                # 把屬於這個群組的卡片畫出來
                 for index, row in group_data.iterrows():
                     st.markdown(f"""
                     <div class="glide-card">
@@ -146,7 +125,7 @@ with tab1:
         st.warning("目前試算表中沒有資料喔！")
 
 # ==========================================
-# 分頁 2：新增紀錄 (維持不變)
+# 分頁 2：新增紀錄
 # ==========================================
 with tab2:
     with st.form(f"add_record_form_{st.session_state.form_key}"):
