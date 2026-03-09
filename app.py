@@ -8,6 +8,12 @@ from datetime import datetime, timedelta, timezone
 # 設定台灣時區 (UTC+8)
 tz_tw = timezone(timedelta(hours=8))
 
+# --- 新增：初始化表單狀態記憶體 ---
+if "form_key" not in st.session_state:
+    st.session_state.form_key = 0
+if "success_msg" not in st.session_state:
+    st.session_state.success_msg = ""
+
 # 1. 取得金鑰並連線到 Google Sheets
 @st.cache_resource 
 def init_connection():
@@ -38,7 +44,7 @@ st.title("🔧 設備維修知識庫")
 tab1, tab2 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄"])
 
 # ==========================================
-# 分頁 1：查詢紀錄 (導入 Glide 卡片美化風格 + 全域搜尋)
+# 分頁 1：查詢紀錄 
 # ==========================================
 with tab1:
     col1, col2 = st.columns(2)
@@ -55,11 +61,9 @@ with tab1:
     filtered_df = df.copy()
 
     if not filtered_df.empty:
-        # 1. 先做下拉選單的篩選
         if selected_comp != "全部":
             filtered_df = filtered_df[filtered_df["Component"] == selected_comp]
 
-        # 2. 執行全欄位關鍵字搜尋
         if search_keyword:
             mask = pd.Series(False, index=filtered_df.index)
             for col in filtered_df.columns:
@@ -128,10 +132,17 @@ with tab1:
         st.warning("目前試算表中沒有資料喔！")
 
 # ==========================================
-# 分頁 2：新增紀錄 (寫入 Google 試算表)
+# 分頁 2：新增紀錄 (導入精準驗證與狀態保留)
 # ==========================================
 with tab2:
-    with st.form("add_record_form", clear_on_submit=True):
+    # 📌 顯示成功訊息 (成功送出後才會觸發)
+    if st.session_state.success_msg:
+        st.success(st.session_state.success_msg)
+        # 顯示完立刻清空，避免下次進來還看到舊訊息
+        st.session_state.success_msg = ""
+
+    # 📌 拿掉 clear_on_submit=True，並透過動態 Key 控制表單重置
+    with st.form(f"add_record_form_{st.session_state.form_key}"):
         st.subheader("📝 填寫現場維修紀錄")
         
         comp_options = [
@@ -141,27 +152,31 @@ with tab2:
         ]
         
         input_date = st.date_input("日期", datetime.now(tz_tw).date())
-        
-        # 📌 修正 1：改為填單人員，且不預設姓名
         input_engineer = st.text_input("填單人員", placeholder="請輸入姓名")
-        
-        # 📌 修正 2：更新客戶與廠區的備註範例
         input_customer = st.text_input("客戶與廠區 (例如: 佰鼎 路竹)")
-        
-        # 📌 修正 3 & 4：設定 index=None 讓下拉選單預設保持空白
         input_machine = st.selectbox("設備機型", ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"], index=None, placeholder="請選擇機型...")
         input_component = st.selectbox("發生異常的部件", comp_options, index=None, placeholder="請選擇部件...")
-        
         input_issue = st.text_area("問題描述 (現象、錯誤代碼等)")
         input_solution = st.text_area("解決方案 (參數調整、更換零件等)")
         
         submitted = st.form_submit_button("送出紀錄至雲端")
         
         if submitted:
-            # 📌 修正 5：檢查「所有」欄位是否都有填寫 (包含下拉選單不能為空白)
-            if not input_engineer or not input_customer or not input_machine or not input_component or not input_issue or not input_solution:
-                st.error("⚠️ 請確認表格內『所有內容』都已填寫完畢喔！")
+            # 📌 建立未填寫清單，精準抓出漏掉的欄位
+            missing_fields = []
+            if not input_engineer: missing_fields.append("【填單人員】")
+            if not input_customer: missing_fields.append("【客戶與廠區】")
+            if not input_machine: missing_fields.append("【設備機型】")
+            if not input_component: missing_fields.append("【發生異常的部件】")
+            if not input_issue: missing_fields.append("【問題描述】")
+            if not input_solution: missing_fields.append("【解決方案】")
+            
+            # 📌 判斷邏輯
+            if missing_fields:
+                # 顯示具體缺少的欄位，因為表單不會自動清空，你的打字內容都會保留
+                st.error(f"⚠️ 提交失敗！請補充以下未填寫的欄位：{', '.join(missing_fields)}")
             else:
+                # 全部過關，準備寫入
                 log_id = datetime.now(tz_tw).strftime("REP-%Y%m%d-%H%M")
                 date_str = input_date.strftime("%Y-%m-%d")
                 
@@ -173,7 +188,14 @@ with tab2:
                 
                 try:
                     sheet.append_row(new_row)
-                    st.success(f"✅ 成功寫入資料庫！單號：{log_id}")
-                    st.cache_data.clear()
+                    st.cache_data.clear() # 清空資料快取
+                    
+                    # 將成功訊息存入記憶體
+                    st.session_state.success_msg = f"✅ 成功寫入資料庫！單號：{log_id}"
+                    # 變更表單 Key，強迫 Streamlit 在下一次載入時產生一張全新的空白表單
+                    st.session_state.form_key += 1
+                    # 立即重新整理畫面
+                    st.rerun()
+                    
                 except Exception as e:
                     st.error(f"寫入失敗，請檢查連線狀態：{e}")
