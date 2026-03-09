@@ -1,43 +1,60 @@
 import streamlit as st
 import pandas as pd
+import json
+import gspread
+from google.oauth2.service_account import Credentials
 
-# 1. 建立測試資料庫 (這裡先用簡單的表格代替 SQLite，方便你馬上測試)
-data = {
-    "Log_ID": ["REP-001", "REP-002", "REP-003"],
-    "Date": ["2026-02-13", "2026-02-26", "2026-03-05"],
-    "Engineer": ["何宇", "Yamaguchi", "何宇"],
-    "Machine_Model": ["CVP-1600SP", "CVP-1600SP", "預貼機"],
-    "Component": ["壓模機-1st", "控制介面 (HMI)", "預貼機-投入"],
-    "Issue_Desc": ["進行 ABF 壓膜時，邊緣產生不規則氣泡", "Pro-face 介面當機，無法連線", "感測器未觸發，導致卡料"],
-    "Solution": ["調整真空度參數，並重新校正", "重新安裝 Pro-face 驅動程式", "清潔光電感測器"]
-}
-df = pd.DataFrame(data)
+# 1. 取得金鑰並連線到 Google Sheets
+@st.cache_resource 
+def init_connection():
+    # 從 Streamlit 秘密金庫讀取剛剛貼上的 JSON
+    creds_dict = json.loads(st.secrets["gcp_credentials"])
+    scopes = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
+    client = gspread.authorize(creds)
+    return client
 
-# 2. 設計網頁介面
-st.title("🔧 設備維修知識庫")
+client = init_connection()
 
-# 建立兩個搜尋條件：下拉選單 與 關鍵字輸入
+# 2. 讀取試算表資料
+@st.cache_data(ttl=60) # 每60秒自動去試算表抓一次最新資料
+def load_data():
+    # 注意：這裡的 "設備維修知識庫" 必須跟你 Google 試算表的檔名一模一樣！
+    sheet = client.open("設備維修知識庫").sheet1
+    data = sheet.get_all_records()
+    return pd.DataFrame(data)
+
+df = load_data()
+
+# 3. 介面設計與搜尋邏輯
+st.title("🔧 設備維修知識庫 (雲端連線版)")
+
 col1, col2 = st.columns(2)
 with col1:
-    # 抓取所有不重複的部件作為選單
-    component_list = ["全部"] + list(df["Component"].unique())
+    if not df.empty and "Component" in df.columns:
+        component_list = ["全部"] + list(df["Component"].unique())
+    else:
+        component_list = ["全部"]
     selected_comp = st.selectbox("請選擇設備部件", component_list)
 
 with col2:
     search_keyword = st.text_input("輸入關鍵字 (例如: 氣泡, Pro-face)")
 
-# 3. 執行搜尋與篩選邏輯
 filtered_df = df.copy()
 
-if selected_comp != "全部":
-    filtered_df = filtered_df[filtered_df["Component"] == selected_comp]
+if not filtered_df.empty:
+    if selected_comp != "全部":
+        filtered_df = filtered_df[filtered_df["Component"] == selected_comp]
 
-if search_keyword:
-    # 只要問題描述或解決方案包含關鍵字，就篩選出來
-    mask = filtered_df["Issue_Desc"].str.contains(search_keyword, case=False) | \
-           filtered_df["Solution"].str.contains(search_keyword, case=False)
-    filtered_df = filtered_df[mask]
+    if search_keyword:
+        mask = filtered_df["Issue_Desc"].astype(str).str.contains(search_keyword, case=False, na=False) | \
+               filtered_df["Solution"].astype(str).str.contains(search_keyword, case=False, na=False)
+        filtered_df = filtered_df[mask]
 
-# 4. 顯示結果
-st.subheader("📋 搜尋結果")
-st.dataframe(filtered_df, use_container_width=True)
+    st.subheader("📋 搜尋結果")
+    st.dataframe(filtered_df, use_container_width=True)
+else:
+    st.warning("目前試算表中沒有資料，或是欄位名稱讀取失敗喔！")
