@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 # 設定台灣時區 (UTC+8)
 tz_tw = timezone(timedelta(hours=8))
 
-# --- 新增：初始化表單狀態記憶體 ---
+# --- 初始化表單狀態記憶體 ---
 if "form_key" not in st.session_state:
     st.session_state.form_key = 0
 if "success_msg" not in st.session_state:
@@ -26,7 +26,6 @@ def init_connection():
     client = gspread.authorize(creds)
     return client
 
-# 將 sheet 設為全域變數，方便後續寫入資料
 client = init_connection()
 sheet = client.open("設備維修知識庫").sheet1
 
@@ -44,7 +43,7 @@ st.title("🔧 設備維修知識庫")
 tab1, tab2 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄"])
 
 # ==========================================
-# 分頁 1：查詢紀錄 
+# 分頁 1：查詢紀錄 (導入樹狀展開與群組分類)
 # ==========================================
 with tab1:
     col1, col2 = st.columns(2)
@@ -53,86 +52,101 @@ with tab1:
             component_list = ["全部"] + list(df["Component"].unique())
         else:
             component_list = ["全部"]
-        selected_comp = st.selectbox("請選擇設備部件", component_list)
+        selected_comp = st.selectbox("第一層篩選：選擇設備部件", component_list)
 
     with col2:
-        search_keyword = st.text_input("輸入關鍵字 (例如: 何宇, 竹科廠, 氣泡)")
+        search_keyword = st.text_input("全域搜尋 (例如: 何宇, 竹科廠, 氣泡)")
 
     filtered_df = df.copy()
 
     if not filtered_df.empty:
+        # 執行下拉選單篩選
         if selected_comp != "全部":
             filtered_df = filtered_df[filtered_df["Component"] == selected_comp]
 
+        # 執行全欄位關鍵字搜尋
         if search_keyword:
             mask = pd.Series(False, index=filtered_df.index)
             for col in filtered_df.columns:
                 mask = mask | filtered_df[col].astype(str).str.contains(search_keyword, case=False, na=False)
             filtered_df = filtered_df[mask]
 
+        # 📌 新增：分類群組選擇器
+        st.write("---")
+        group_by_option = st.radio(
+            "🗂️ 選擇展開分類方式：",
+            ["依客戶與廠區", "依設備機型", "依異常部件"],
+            horizontal=True
+        )
+
+        # 將中文選項對應到資料表的欄位名稱
+        group_col_map = {
+            "依客戶與廠區": "Customer",
+            "依設備機型": "Machine_Model",
+            "依異常部件": "Component"
+        }
+        group_col = group_col_map[group_by_option]
+
+        # 注入 Glide 卡片 CSS
         st.markdown("""
         <style>
         .glide-card {
             background-color: #ffffff;
             padding: 16px;
             border-radius: 12px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05), 0 1px 3px rgba(0,0,0,0.1);
-            margin-bottom: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 12px;
             border-left: 6px solid #00c4b4;
         }
-        .glide-title {
-            font-size: 18px;
-            font-weight: 700;
-            color: #1f2937;
-            margin-bottom: 4px;
-        }
-        .glide-subtitle {
-            font-size: 15px;
-            color: #4b5563;
-            margin-bottom: 12px;
-            line-height: 1.4;
-        }
+        .glide-title { font-size: 16px; font-weight: 700; color: #1f2937; margin-bottom: 4px; }
+        .glide-subtitle { font-size: 14px; color: #4b5563; margin-bottom: 10px; line-height: 1.4; }
         .glide-tag {
-            background-color: #f3f4f6;
-            color: #374151;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            display: inline-block;
-            margin-right: 6px;
-            margin-bottom: 8px;
+            background-color: #f3f4f6; color: #374151; padding: 3px 8px;
+            border-radius: 12px; font-size: 11px; display: inline-block;
+            margin-right: 4px; margin-bottom: 6px;
         }
         .glide-solution {
-            font-size: 14px;
-            color: #065f46;
-            background-color: #d1fae5;
-            padding: 10px;
-            border-radius: 8px;
-            margin-top: 8px;
+            font-size: 13px; color: #065f46; background-color: #d1fae5;
+            padding: 8px; border-radius: 6px; margin-top: 6px;
         }
         </style>
         """, unsafe_allow_html=True)
 
         st.caption(f"🔍 找到 {len(filtered_df)} 筆相關紀錄")
 
-        for index, row in filtered_df.iterrows():
-            st.markdown(f"""
-            <div class="glide-card">
-                <div class="glide-title">{row['Component']}</div>
-                <div class="glide-tag">📅 {row['Date']}</div>
-                <div class="glide-tag">🏢 {row['Customer']}</div>
-                <div class="glide-tag">⚙️ {row['Machine_Model']}</div>
-                <div class="glide-tag">👤 {row['Engineer']}</div>
-                <div class="glide-subtitle"><b>狀況：</b>{row['Issue_Desc']}</div>
-                <div class="glide-solution"><b>💡 解法：</b>{row['Solution']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+        # 📌 新增：動態產生樹狀折疊清單 (Expander)
+        # 1. 先抓出目前篩選結果中，該欄位有哪幾種不重複的值
+        unique_groups = filtered_df[group_col].unique()
+
+        # 2. 跑迴圈，為每一個種類建立一個資料夾 (Expander)
+        for group_name in unique_groups:
+            # 處理空白或未填寫的狀況
+            display_name = group_name if str(group_name).strip() != "" else "未分類/未填寫"
+            
+            # 抓出屬於這個資料夾的所有紀錄
+            group_data = filtered_df[filtered_df[group_col] == group_name]
+            
+            # 建立折疊標題，並顯示裡面有幾筆資料
+            with st.expander(f"📁 {display_name} (共 {len(group_data)} 筆)"):
+                # 把屬於這個群組的卡片畫出來
+                for index, row in group_data.iterrows():
+                    st.markdown(f"""
+                    <div class="glide-card">
+                        <div class="glide-title">{row['Component']}</div>
+                        <div class="glide-tag">📅 {row['Date']}</div>
+                        <div class="glide-tag">🏢 {row['Customer']}</div>
+                        <div class="glide-tag">⚙️ {row['Machine_Model']}</div>
+                        <div class="glide-tag">👤 {row['Engineer']}</div>
+                        <div class="glide-subtitle"><b>狀況：</b>{row['Issue_Desc']}</div>
+                        <div class="glide-solution"><b>💡 解法：</b>{row['Solution']}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
 
     else:
         st.warning("目前試算表中沒有資料喔！")
 
 # ==========================================
-# 分頁 2：新增紀錄 (優化提示訊息位置)
+# 分頁 2：新增紀錄 (維持不變)
 # ==========================================
 with tab2:
     with st.form(f"add_record_form_{st.session_state.form_key}"):
@@ -186,8 +200,6 @@ with tab2:
                 except Exception as e:
                     st.error(f"寫入失敗，請檢查連線狀態：{e}")
                     
-    # 📌 顯示成功訊息 (移到表單外面且在最下方)
     if st.session_state.success_msg:
         st.success(st.session_state.success_msg)
         st.session_state.success_msg = ""
-
