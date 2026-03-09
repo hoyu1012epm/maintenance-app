@@ -67,15 +67,17 @@ df = load_data()
 if not df.empty:
     df = df.iloc[::-1].reset_index(drop=True)
 
-# --- 標題區塊 ---
-col1, col2 = st.columns([1, 6])
+# --- 標題區塊：完美對齊版 ---
+col1, col2 = st.columns([1, 5]) 
 with col1:
     try:
-        st.image("logo.png", width=100) 
+        # 固定寬度，不讓它亂跑
+        st.image("logo.png", width=80) 
     except:
         st.title("🔧") 
 with col2:
-    st.title("設備維修知識庫")
+    # 偷偷用 HTML 把標題往上提，跟 LOGO 齊平
+    st.markdown("<h1 style='margin-top: -15px;'>設備維修知識庫</h1>", unsafe_allow_html=True)
 # -----------------------------
 
 tab1, tab2 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄"])
@@ -241,3 +243,4 @@ with tab2:
     if st.session_state.success_msg:
         st.success(st.session_state.success_msg)
         st.session_state.success_msg = ""
+
