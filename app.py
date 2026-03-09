@@ -241,7 +241,7 @@ with tab2:
         st.session_state.success_msg = ""
 
 # ==========================================
-# 分頁 3：數據分析 (防誤觸、乾淨版)
+# 分頁 3：數據分析 (圖表全中文提示版)
 # ==========================================
 with tab3:
     st.subheader("📈 維修數據統計看板")
@@ -265,37 +265,35 @@ with tab3:
         with col_chart1:
             st.markdown("##### ⚙️ 各機型報修佔比")
             machine_counts = df['Machine_Model'].value_counts().reset_index()
-            machine_counts.columns = ['Machine_Model', 'Count']
+            # 📌 關鍵修改：直接在這裡將欄位名稱換成中文
+            machine_counts.columns = ['機型', '次數']
             
             fig_pie = px.pie(
                 machine_counts, 
-                names='Machine_Model', 
-                values='Count',
+                names='機型', # 對應中文欄位
+                values='次數', # 對應中文欄位
                 hole=0.4, 
                 color_discrete_sequence=px.colors.sequential.YlOrBr[2:] 
             )
-            # 📌 加入 dragmode=False 關閉圖表拖曳功能
             fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0), dragmode=False)
-            
-            # 📌 加入 config={'displayModeBar': False} 把右上角複雜的工具列隱藏起來
             st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
 
         with col_chart2:
             st.markdown("##### 🔧 異常部件排行榜")
             comp_counts = df['Component'].value_counts().reset_index()
-            comp_counts.columns = ['Component', 'Count']
+            # 📌 關鍵修改：直接在這裡將欄位名稱換成中文
+            comp_counts.columns = ['部件', '次數']
             
             fig_bar = px.bar(
                 comp_counts, 
-                x='Count', 
-                y='Component',
+                x='次數', # 對應中文欄位
+                y='部件', # 對應中文欄位
                 orientation='h', 
-                text='Count',
+                text='次數', # 讓長條圖上顯示的文字也讀取中文欄位
                 color_discrete_sequence=['#FFA726']
             )
             fig_bar.update_traces(textposition='outside')
             
-            # 📌 鎖定 X/Y 軸不被放大縮小，並關閉拖曳
             fig_bar.update_layout(
                 yaxis={'categoryorder':'total ascending', 'fixedrange': True}, 
                 xaxis={'fixedrange': True},
@@ -305,7 +303,6 @@ with tab3:
                 dragmode=False
             )
             
-            # 📌 一樣隱藏工具列
             st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
 
     else:
