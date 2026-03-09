@@ -55,6 +55,12 @@ with tab1:
     filtered_df = df.copy()
 
     if not filtered_df.empty:
+        # 📌 新增：動態將 Date 欄位 (2026-03-09) 轉換成年月格式 (26/03) 供分類使用
+        try:
+            filtered_df['YearMonth'] = pd.to_datetime(filtered_df['Date']).dt.strftime('%y/%m')
+        except Exception:
+            filtered_df['YearMonth'] = "未知時間"
+
         # 執行全欄位關鍵字搜尋
         if search_keyword:
             mask = pd.Series(False, index=filtered_df.index)
@@ -63,13 +69,15 @@ with tab1:
             filtered_df = filtered_df[mask]
 
         st.write("---")
+        # 📌 修正：加入「依建立年月」選項
         group_by_option = st.radio(
             "🗂️ 選擇展開分類方式：",
-            ["依客戶與廠區", "依設備機型", "依設備部件"], 
+            ["依建立年月", "依客戶與廠區", "依設備機型", "依設備部件"], 
             horizontal=True
         )
 
         group_col_map = {
+            "依建立年月": "YearMonth", # 對應到剛剛動態產生的欄位
             "依客戶與廠區": "Customer",
             "依設備機型": "Machine_Model",
             "依設備部件": "Component" 
@@ -103,25 +111,22 @@ with tab1:
 
         st.caption(f"🔍 找到 {len(filtered_df)} 筆相關紀錄")
 
-        # 📌 修正：定義部件的專屬排序清單 (照機台從頭到尾的順序)
         custom_component_order = [
             "預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", 
             "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", 
             "PLC", "真空/氣壓系統", "溫控系統", "其他"
         ]
 
-        # 抓出目前篩選結果中，該欄位有哪幾種不重複的值
         unique_groups = filtered_df[group_col].unique().tolist()
 
-        # 📌 修正：依照自訂順序或是字母順序來排列資料夾
+        # 📌 修正：新增年月排序邏輯 (越新的月份排在越上面)
         if group_col == "Component":
-            # 如果是部件分類，就照我們上面寫的產線順序排；如果遇到沒在清單上的，就把它丟到最後面
             unique_groups.sort(key=lambda x: custom_component_order.index(x) if x in custom_component_order else 999)
+        elif group_col == "YearMonth":
+            unique_groups.sort(reverse=True) # 降冪排序，讓 26/03 排在 26/02 前面
         else:
-            # 如果是客戶或機型，就按字母順序排
             unique_groups.sort(key=lambda x: str(x))
 
-        # 產生樹狀資料夾
         for group_name in unique_groups:
             display_name = group_name if str(group_name).strip() != "" else "未分類/未填寫"
             group_data = filtered_df[filtered_df[group_col] == group_name]
