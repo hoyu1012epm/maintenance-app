@@ -40,22 +40,30 @@ def format_params_html(raw_text):
         valid_lines.append(line)
     return "<br>".join(valid_lines) if valid_lines else ""
 
-# 📌 更新：壓模機專屬輸入 UI (統一溫度、修改壓力與真空單位)
+# 📌 更新：依據你的需求重新排版壓模機輸入框，並刪除真空到達
 def render_lam_inputs(stage_name, key_prefix):
     with st.expander(f"📍 {stage_name} 參數"):
+        # 第一排：溫度自己一整排
+        t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t")
+        
+        # 第二排：真空度與時間
         c1, c2 = st.columns(2)
         with c1:
-            t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t")
             v_set = st.text_input("真空度 (hPa)", key=f"{key_prefix}_vs")
-            t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv")
         with c2:
+            t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv")
+            
+        # 第三排：壓力與時間
+        c3, c4 = st.columns(2)
+        with c3:
             p = st.text_input("壓合壓力 (kgf/cm²)", key=f"{key_prefix}_p")
-            v_rch = st.text_input("真空到達 (Pa)", key=f"{key_prefix}_vr")
+        with c4:
             t_p = st.text_input("壓合時間 (sec)", key=f"{key_prefix}_tp")
+            
         return {
             "溫度 (℃)": t, 
-            "真空度 (hPa)": v_set, "真空到達 (Pa)": v_rch,
-            "壓合壓力 (kgf/cm²)": p, "抽真空時間 (sec)": t_v, "壓合時間 (sec)": t_p
+            "真空度 (hPa)": v_set, "抽真空時間 (sec)": t_v,
+            "壓合壓力 (kgf/cm²)": p, "壓合時間 (sec)": t_p
         }
 # ---------------------------------------------
 
@@ -326,7 +334,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             st.write("---")
             st.markdown("##### ⚙️ 各站機台參數設定 (沒填寫的欄位將自動隱藏)")
             
-            # 📌 更新：預貼機加入留邊量
             with st.expander("📍 預貼機參數"):
                 c_p1, c_p2 = st.columns(2)
                 with c_p1: 
@@ -353,7 +360,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                 else:
                     with st.spinner("打包參數並寫入雲端中..."):
                         input_d_substrate = pack_params({"板材類型": sub_t, "膜材": sub_f, "基板尺寸": sub_d})
-                        # 📌 更新：打包時包含留邊量
                         input_d_pre = pack_params({"空調使用": pre_ac, "預貼溫度 (℃)": pre_t, "預貼壓力 (MPa)": pre_p, "預貼速度 (m/min)": pre_s, "前後留邊量": pre_m})
                         input_d_1st = pack_params(lam1_dict)
                         input_d_2nd = pack_params(lam2_dict)
