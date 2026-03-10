@@ -217,7 +217,6 @@ if app_mode == "🔧 現場維修系統":
                         st.session_state.form_key += 1
                         st.rerun()
 
-        # 📌 修正：把維修系統的成功訊息搬進 tab2 裡面
         if st.session_state.success_msg:
             st.success(st.session_state.success_msg)
             st.session_state.success_msg = ""
@@ -281,7 +280,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             for index, row in filtered_demo.iterrows():
                 photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
                 
-                # 📌 修正：把 DEMO 卡片的 HTML 靠左貼齊，防止變成程式碼灰框
                 st.markdown(f"""
 <div class="glide-card">
 <div class="glide-title">🧪 配方: {row.get('Recipe_NO', '未命名')} | 機台: {row.get('Equipment', '')}</div>
@@ -289,12 +287,12 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
 <div class="glide-tag">🏢 {row.get('Customer', '')}</div>
 <div class="glide-tag">👤 操作: {row.get('Operator', '')}</div>
 <div class="glide-tag">📦 數量: {row.get('Qty', '')}</div>
-<div class="glide-subtitle"><b>基材/膜材：</b>{row.get('Substrate_Info', '')}</div>
+<div class="glide-subtitle"><b>基材/膜材：</b><br>{str(row.get('Substrate_Info', '')).replace(chr(10), '<br>')}</div>
 <div style="background-color:#F9F9F9; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px; color:#555;">
-<b>🔹 預貼機參數：</b> {row.get('Pre_Lam', '無')}<br>
-<b>🔹 1st 壓模：</b> {row.get('Lam_1st', '無')}<br>
-<b>🔹 2nd 壓模：</b> {row.get('Lam_2nd', '無')}<br>
-<b>🔹 3rd 壓模：</b> {row.get('Lam_3rd', '無')}
+<b>🔹 預貼機參數：</b><br>{str(row.get('Pre_Lam', '無')).replace(chr(10), '<br>')}<br><br>
+<b>🔹 1st 壓模：</b><br>{str(row.get('Lam_1st', '無')).replace(chr(10), '<br>')}<br><br>
+<b>🔹 2nd 壓模：</b><br>{str(row.get('Lam_2nd', '無')).replace(chr(10), '<br>')}<br><br>
+<b>🔹 3rd 壓模：</b><br>{str(row.get('Lam_3rd', '無')).replace(chr(10), '<br>')}
 </div>
 <div class="glide-subtitle"><b>📝 備註與異常：</b>{row.get('Remarks', '無')}</div>
 <div class="glide-solution"><b>🗣️ 客戶反饋：</b>{row.get('Feedback', '無')}</div>
@@ -318,18 +316,27 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             with c5: input_d_equip = st.text_input("設備類型 (如: CVP-1600SP)")
             
             input_d_recipe = st.text_input("配方 NO. (Recipe)")
-            input_d_substrate = st.text_area("基材資訊 (板材類型 / 膜材型號厚度 / 基板大小)")
+            
+            # 📌 加入基材資訊的預設模板
+            sub_template = "板材類型：\n膜材供應商/型號/厚度：\n基板大小/基板厚度："
+            input_d_substrate = st.text_area("基材資訊", value=sub_template, height=100)
             
             st.write("---")
-            st.markdown("##### ⚙️ 各站機台參數設定")
+            st.markdown("##### ⚙️ 各站機台參數設定 (請直接於冒號後方填寫數值)")
+            
+            # 📌 根據你的 Excel 設計，加入機台參數的預設模板
+            pre_template = "空調使用 (有/無)：\n預貼溫度 (℃)：\n預貼壓力 (MPa)：\n預貼速度 (m/min)："
+            lam_template = "上熱盤溫度 (℃)：\n下熱盤溫度 (℃)：\n真空設定 (Pa)：\n真空到達 (Pa)：\n壓合壓力 (MPa)：\n抽真空時間 (sec)：\n壓合時間 (sec)："
+            
+            # 使用 height 參數將輸入框拉高，讓模板文字一次完整顯示
             with st.expander("📍 預貼機參數"):
-                input_d_pre = st.text_area("預貼機設定 (溫度/壓力/速度/空調等)", key="d_pre")
+                input_d_pre = st.text_area("預貼機設定", value=pre_template, height=120, key="d_pre")
             with st.expander("📍 1st 壓模機參數"):
-                input_d_1st = st.text_area("1st 壓模設定", key="d_1st")
+                input_d_1st = st.text_area("1st 壓模設定", value=lam_template, height=200, key="d_1st")
             with st.expander("📍 2nd 壓模機參數"):
-                input_d_2nd = st.text_area("2nd 壓模設定", key="d_2nd")
+                input_d_2nd = st.text_area("2nd 壓模設定", value=lam_template, height=200, key="d_2nd")
             with st.expander("📍 3rd 壓模機參數"):
-                input_d_3rd = st.text_area("3rd 壓模設定", key="d_3rd")
+                input_d_3rd = st.text_area("3rd 壓模設定", value=lam_template, height=200, key="d_3rd")
                 
             st.write("---")
             input_d_qty = st.text_input("壓合數量 (片/次)")
@@ -359,7 +366,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                         st.session_state.form_key += 1
                         st.rerun()
 
-        # 📌 修正：把 DEMO 系統的成功訊息也搬進 tab_d2 裡面
         if st.session_state.success_msg:
             st.success(st.session_state.success_msg)
             st.session_state.success_msg = ""
