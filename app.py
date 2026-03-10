@@ -21,7 +21,6 @@ if "success_msg" not in st.session_state:
 GAS_URL = "https://script.google.com/macros/s/AKfycbxEVcNlZjjFEmkQmH8Ft-P8mVTSQllsfFF0Khf4YE8lmuOvRQBU8lzocmFs04oMm6g5/exec"
 
 # --- 🛠️ 輔助功能區 (打包參數與顯示過濾) ---
-# 將零散的輸入框打包成一段文字，空的直接略過
 def pack_params(param_dict):
     lines = []
     for k, v in param_dict.items():
@@ -29,7 +28,6 @@ def pack_params(param_dict):
             lines.append(f"{k}：{v.strip()}")
     return "\n".join(lines) if lines else "無"
 
-# 智慧過濾：將資料庫裡帶有空白冒號的行數全部隱藏
 def format_params_html(raw_text):
     if str(raw_text).strip() in ["", "無", "nan", "None", "NaN"]:
         return ""
@@ -42,23 +40,22 @@ def format_params_html(raw_text):
         valid_lines.append(line)
     return "<br>".join(valid_lines) if valid_lines else ""
 
-# 壓模機專屬輸入 UI 模組化 (讓版面變整齊的魔法)
+# 📌 更新：壓模機專屬輸入 UI (統一溫度、修改壓力與真空單位)
 def render_lam_inputs(stage_name, key_prefix):
     with st.expander(f"📍 {stage_name} 參數"):
         c1, c2 = st.columns(2)
         with c1:
-            t_top = st.text_input("上熱盤溫度 (℃)", key=f"{key_prefix}_tt")
-            v_set = st.text_input("真空設定 (Pa)", key=f"{key_prefix}_vs")
-            p = st.text_input("壓合壓力 (MPa)", key=f"{key_prefix}_p")
+            t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t")
+            v_set = st.text_input("真空度 (hPa)", key=f"{key_prefix}_vs")
             t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv")
         with c2:
-            t_bot = st.text_input("下熱盤溫度 (℃)", key=f"{key_prefix}_tb")
+            p = st.text_input("壓合壓力 (kgf/cm²)", key=f"{key_prefix}_p")
             v_rch = st.text_input("真空到達 (Pa)", key=f"{key_prefix}_vr")
             t_p = st.text_input("壓合時間 (sec)", key=f"{key_prefix}_tp")
         return {
-            "上熱盤溫度 (℃)": t_top, "下熱盤溫度 (℃)": t_bot,
-            "真空設定 (Pa)": v_set, "真空到達 (Pa)": v_rch,
-            "壓合壓力 (MPa)": p, "抽真空時間 (s)": t_v, "壓合時間 (s)": t_p
+            "溫度 (℃)": t, 
+            "真空度 (hPa)": v_set, "真空到達 (Pa)": v_rch,
+            "壓合壓力 (kgf/cm²)": p, "抽真空時間 (sec)": t_v, "壓合時間 (sec)": t_p
         }
 # ---------------------------------------------
 
@@ -269,7 +266,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             for index, row in filtered_demo.iterrows():
                 photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
                 
-                # 📌 完美過濾：使用 format_params_html 清除所有多餘空白、無數值的項目
                 html_sub = format_params_html(row.get('Substrate_Info', ''))
                 html_pre = format_params_html(row.get('Pre_Lam', ''))
                 html_l1 = format_params_html(row.get('Lam_1st', ''))
@@ -321,7 +317,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             
             input_d_recipe = st.text_input("配方 NO. (Recipe)")
             
-            # 📌 UI 大改造：基材資訊改成獨立輸入框
             with st.expander("📍 基材資訊 (沒填寫的將自動隱藏)"):
                 c_s1, c_s2 = st.columns(2)
                 with c_s1: sub_t = st.text_input("板材類型", key="s_t")
@@ -331,7 +326,7 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             st.write("---")
             st.markdown("##### ⚙️ 各站機台參數設定 (沒填寫的欄位將自動隱藏)")
             
-            # 📌 UI 大改造：預貼機改成獨立輸入框
+            # 📌 更新：預貼機加入留邊量
             with st.expander("📍 預貼機參數"):
                 c_p1, c_p2 = st.columns(2)
                 with c_p1: 
@@ -340,8 +335,8 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                 with c_p2:
                     pre_t = st.text_input("預貼溫度 (℃)", key="p_t")
                     pre_s = st.text_input("預貼速度 (m/min)", key="p_s")
+                pre_m = st.text_input("前後留邊量 (前mm / 後mm)", key="p_m")
                     
-            # 📌 UI 大改造：呼叫模組產生 1st, 2nd, 3rd 的獨立輸入框
             lam1_dict = render_lam_inputs("1st 壓模機", "l1")
             lam2_dict = render_lam_inputs("2nd 壓模機", "l2")
             lam3_dict = render_lam_inputs("3rd 壓模機", "l3")
@@ -357,9 +352,9 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                     st.error("⚠️ 請至少填寫操作人、客戶名稱與設備類型！")
                 else:
                     with st.spinner("打包參數並寫入雲端中..."):
-                        # 📌 神奇的資料打包機：只把有填寫的內容組合成字串
                         input_d_substrate = pack_params({"板材類型": sub_t, "膜材": sub_f, "基板尺寸": sub_d})
-                        input_d_pre = pack_params({"空調使用": pre_ac, "預貼溫度 (℃)": pre_t, "預貼壓力 (MPa)": pre_p, "預貼速度 (m/min)": pre_s})
+                        # 📌 更新：打包時包含留邊量
+                        input_d_pre = pack_params({"空調使用": pre_ac, "預貼溫度 (℃)": pre_t, "預貼壓力 (MPa)": pre_p, "預貼速度 (m/min)": pre_s, "前後留邊量": pre_m})
                         input_d_1st = pack_params(lam1_dict)
                         input_d_2nd = pack_params(lam2_dict)
                         input_d_3rd = pack_params(lam3_dict)
