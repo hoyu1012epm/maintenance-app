@@ -173,6 +173,10 @@ if app_mode == "🔧 現場維修系統":
                         photo_html = ""
                         if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http"):
                             photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">'
+                        
+                        # 📌 維修系統：同步修復隱形換行符號
+                        val_issue = str(row.get('Issue_Desc', '')).replace('\r', '').replace('\n', '<br>')
+                        val_solution = str(row.get('Solution', '')).replace('\r', '').replace('\n', '<br>')
                             
                         st.markdown(f"""
 <div class="glide-card">
@@ -181,8 +185,8 @@ if app_mode == "🔧 現場維修系統":
 <div class="glide-tag">🏢 {row.get('Customer', '')}</div>
 <div class="glide-tag">⚙️ {row.get('Machine_Model', '')}</div>
 <div class="glide-tag">👤 {row.get('Engineer', '')}</div>
-<div class="glide-subtitle"><b>狀況：</b>{row.get('Issue_Desc', '')}</div>
-<div class="glide-solution"><b>💡 解法：</b>{row.get('Solution', '')}</div>
+<div class="glide-subtitle"><b>狀況：</b><br>{val_issue}</div>
+<div class="glide-solution"><b>💡 解法：</b><br>{val_solution}</div>
 {photo_html}
 </div>
 """, unsafe_allow_html=True)
@@ -280,28 +284,27 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             for index, row in filtered_demo.iterrows():
                 photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
                 
-                # 📌 關鍵修正：定義「要隱藏的關鍵字」清單，並強制去除所有隱藏空白
                 hide_words = ["", "無", "nan", "None", "NaN"]
+                
+                # 📌 終極除錯：徹底清除 \r 與 \n，並把資料變成安全的網頁字串
+                val_sub = str(row.get('Substrate_Info', '')).replace('\r', '').replace('\n', '<br>')
+                val_remark = str(row.get('Remarks', '無')).replace('\r', '').replace('\n', '<br>')
+                val_feedback = str(row.get('Feedback', '無')).replace('\r', '').replace('\n', '<br>')
                 
                 val_pre = str(row.get('Pre_Lam', '')).strip()
                 val_lam1 = str(row.get('Lam_1st', '')).strip()
                 val_lam2 = str(row.get('Lam_2nd', '')).strip()
                 val_lam3 = str(row.get('Lam_3rd', '')).strip()
 
-                # 只有當參數「不在」隱藏清單裡面時，才組裝那段 HTML
-                pre_html = f"<b>🔹 預貼機參數：</b><br>{val_pre.replace(chr(10), '<br>')}<br><br>" if val_pre not in hide_words else ""
-                lam1_html = f"<b>🔹 1st 壓模：</b><br>{val_lam1.replace(chr(10), '<br>')}<br><br>" if val_lam1 not in hide_words else ""
-                lam2_html = f"<b>🔹 2nd 壓模：</b><br>{val_lam2.replace(chr(10), '<br>')}<br><br>" if val_lam2 not in hide_words else ""
-                lam3_html = f"<b>🔹 3rd 壓模：</b><br>{val_lam3.replace(chr(10), '<br>')}" if val_lam3 not in hide_words else ""
+                pre_html = f"<b>🔹 預貼機參數：</b><br>{val_pre.replace('\r', '').replace('\n', '<br>')}<br><br>" if val_pre not in hide_words else ""
+                lam1_html = f"<b>🔹 1st 壓模：</b><br>{val_lam1.replace('\r', '').replace('\n', '<br>')}<br><br>" if val_lam1 not in hide_words else ""
+                lam2_html = f"<b>🔹 2nd 壓模：</b><br>{val_lam2.replace('\r', '').replace('\n', '<br>')}<br><br>" if val_lam2 not in hide_words else ""
+                lam3_html = f"<b>🔹 3rd 壓模：</b><br>{val_lam3.replace('\r', '').replace('\n', '<br>')}" if val_lam3 not in hide_words else ""
                 
-                # 如果所有機台都沒填 (HTML都為空)，就不顯示那個灰底的參數框
+                # 📌 徹底取消排版縮排，用一行寫完，避免被判定為 Code Block
                 params_block = ""
                 if pre_html or lam1_html or lam2_html or lam3_html:
-                    params_block = f"""
-                    <div style="background-color:#F9F9F9; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px; color:#555;">
-                    {pre_html}{lam1_html}{lam2_html}{lam3_html}
-                    </div>
-                    """
+                    params_block = f"<div style='background-color:#F9F9F9; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px; color:#555;'>{pre_html}{lam1_html}{lam2_html}{lam3_html}</div>"
 
                 st.markdown(f"""
 <div class="glide-card">
@@ -310,10 +313,10 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
 <div class="glide-tag">🏢 {row.get('Customer', '')}</div>
 <div class="glide-tag">👤 操作: {row.get('Operator', '')}</div>
 <div class="glide-tag">📦 數量: {row.get('Qty', '')}</div>
-<div class="glide-subtitle"><b>基材/膜材：</b><br>{str(row.get('Substrate_Info', '')).replace(chr(10), '<br>')}</div>
+<div class="glide-subtitle"><b>基材/膜材：</b><br>{val_sub}</div>
 {params_block}
-<div class="glide-subtitle"><b>📝 備註與異常：</b>{row.get('Remarks', '無')}</div>
-<div class="glide-solution"><b>🗣️ 客戶反饋：</b>{row.get('Feedback', '無')}</div>
+<div class="glide-subtitle"><b>📝 備註與異常：</b><br>{val_remark}</div>
+<div class="glide-solution"><b>🗣️ 客戶反饋：</b><br>{val_feedback}</div>
 {photo_html}
 </div>
 """, unsafe_allow_html=True)
