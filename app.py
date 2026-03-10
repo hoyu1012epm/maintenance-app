@@ -20,7 +20,7 @@ if "success_msg" not in st.session_state:
 # 📌 你的 Google Apps Script 專屬接收站網址
 GAS_URL = "https://script.google.com/macros/s/AKfycbxEVcNlZjjFEmkQmH8Ft-P8mVTSQllsfFF0Khf4YE8lmuOvRQBU8lzocmFs04oMm6g5/exec"
 
-# 1. 取得金鑰並連線到 Google Sheets (改為同時載入兩張表)
+# 1. 取得金鑰並連線到 Google Sheets (同時載入兩張表)
 @st.cache_resource 
 def init_connection():
     creds_dict = json.loads(st.secrets["gcp_credentials"])
@@ -72,7 +72,6 @@ with st.sidebar:
     st.write("---")
     st.markdown("### 📴 無塵室離線準備")
     
-    # 根據目前的模式，提供對應的離線下載包
     if app_mode == "🔧 現場維修系統":
         df_maint = load_data("maint")
         if not df_maint.empty:
@@ -118,34 +117,80 @@ if app_mode == "🔧 現場維修系統":
     tab1, tab2, tab3 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄", "📊 數據分析"])
     df = load_data("maint")
 
+    # 📌 完美修復：把原本的分類功能加回來了！
     with tab1:
-        search_keyword = st.text_input("🔍 全域搜尋 (例如: 廠區, 問題關鍵字)")
+        search_keyword = st.text_input("🔍 全域搜尋 (例如: 日期, 廠區, 問題 ... 等 關鍵字)")
         filtered_df = df.copy()
 
         if not filtered_df.empty:
+            try:
+                filtered_df['YearMonth'] = pd.to_datetime(filtered_df['Date']).dt.strftime('%y/%m')
+            except Exception:
+                filtered_df['YearMonth'] = "未知時間"
+
             if search_keyword:
                 mask = pd.Series(False, index=filtered_df.index)
                 for col in filtered_df.columns:
                     mask = mask | filtered_df[col].astype(str).str.contains(search_keyword, case=False, na=False)
                 filtered_df = filtered_df[mask]
 
-            st.caption(f"🔍 找到 {len(filtered_df)} 筆紀錄")
-            for index, row in filtered_df.iterrows():
-                photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
-                st.markdown(f"""
-                <div class="glide-card">
-                <div class="glide-title">{row.get('Component', '')}</div>
-                <div class="glide-tag">📅 {row.get('Date', '')}</div>
-                <div class="glide-tag">🏢 {row.get('Customer', '')}</div>
-                <div class="glide-tag">⚙️ {row.get('Machine_Model', '')}</div>
-                <div class="glide-tag">👤 {row.get('Engineer', '')}</div>
-                <div class="glide-subtitle"><b>狀況：</b>{row.get('Issue_Desc', '')}</div>
-                <div class="glide-solution"><b>💡 解法：</b>{row.get('Solution', '')}</div>
-                {photo_html}
-                </div>
-                """, unsafe_allow_html=True)
+            st.write("---")
+            group_by_option = st.radio(
+                "🗂️ 選擇展開分類方式：",
+                ["依建立年月", "依客戶與廠區", "依設備機型", "依設備部件"], 
+                horizontal=True
+            )
+
+            group_col_map = {
+                "依建立年月": "YearMonth", 
+                "依客戶與廠區": "Customer",
+                "依設備機型": "Machine_Model",
+                "依設備部件": "Component" 
+            }
+            group_col = group_col_map[group_by_option]
+            
+            st.caption(f"🔍 找到 {len(filtered_df)} 筆相關紀錄")
+
+            custom_component_order = [
+                "預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", 
+                "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", 
+                "PLC", "真空/氣壓系統", "溫控系統", "其他"
+            ]
+
+            unique_groups = filtered_df[group_col].unique().tolist()
+
+            if group_col == "Component":
+                unique_groups.sort(key=lambda x: custom_component_order.index(x) if x in custom_component_order else 999)
+            elif group_col == "YearMonth":
+                unique_groups.sort(reverse=True) 
+            else:
+                unique_groups.sort(key=lambda x: str(x))
+
+            for group_name in unique_groups:
+                display_name = group_name if str(group_name).strip() != "" else "未分類/未填寫"
+                group_data = filtered_df[filtered_df[group_col] == group_name]
+                
+                with st.expander(f"📁 {display_name} (共 {len(group_data)} 筆)"):
+                    for index, row in group_data.iterrows():
+                        photo_html = ""
+                        if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http"):
+                            photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">'
+                            
+                        st.markdown(f"""
+<div class="glide-card">
+<div class="glide-title">{row.get('Component', '')}</div>
+<div class="glide-tag">📅 {row.get('Date', '')}</div>
+<div class="glide-tag">🏢 {row.get('Customer', '')}</div>
+<div class="glide-tag">⚙️ {row.get('Machine_Model', '')}</div>
+<div class="glide-tag">👤 {row.get('Engineer', '')}</div>
+<div class="glide-subtitle"><b>狀況：</b>{row.get('Issue_Desc', '')}</div>
+<div class="glide-solution"><b>💡 解法：</b>{row.get('Solution', '')}</div>
+{photo_html}
+</div>
+""", unsafe_allow_html=True)
+
         else:
-            st.warning("目前試算表中沒有維修資料喔！")
+            st.warning("目前試算表中沒有資料喔！")
 
     with tab2:
         with st.form(f"maint_form_{st.session_state.form_key}"):
@@ -174,8 +219,44 @@ if app_mode == "🔧 現場維修系統":
                         st.session_state.form_key += 1
                         st.rerun()
 
+    with tab3:
+        st.subheader("📈 維修數據統計看板")
+        if not df.empty:
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("累積維修總件數", f"{len(df)} 件")
+            with col2:
+                current_month = datetime.now(tz_tw).strftime("%Y-%m")
+                this_month_count = df[df['Date'].str.startswith(current_month, na=False)].shape[0]
+                st.metric("本月新增件數", f"{this_month_count} 件")
+            with col3:
+                unique_machines = df['Machine_Model'].nunique()
+                st.metric("涵蓋機型數量", f"{unique_machines} 種")
+                
+            st.write("---")
+            col_chart1, col_chart2 = st.columns(2)
+            
+            with col_chart1:
+                st.markdown("##### ⚙️ 各機型報修佔比")
+                machine_counts = df['Machine_Model'].value_counts().reset_index()
+                machine_counts.columns = ['機型', '次數']
+                fig_pie = px.pie(machine_counts, names='機型', values='次數', hole=0.4, color_discrete_sequence=px.colors.sequential.YlOrBr[2:])
+                fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0), dragmode=False)
+                st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
+
+            with col_chart2:
+                st.markdown("##### 🔧 異常部件排行榜")
+                comp_counts = df['Component'].value_counts().reset_index()
+                comp_counts.columns = ['部件', '次數']
+                fig_bar = px.bar(comp_counts, x='次數', y='部件', orientation='h', text='次數', color_discrete_sequence=['#FFA726'])
+                fig_bar.update_traces(textposition='outside')
+                fig_bar.update_layout(yaxis={'categoryorder':'total ascending', 'fixedrange': True}, xaxis={'fixedrange': True}, margin=dict(t=0, b=0, l=0, r=0), xaxis_title="報修次數", yaxis_title="", dragmode=False)
+                st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
+        else:
+            st.info("目前系統中還沒有資料，等輸入幾筆維修紀錄後，這裡就會自動變出圖表囉！")
+
 # ==========================================
-# 模式 B：DEMO 實驗紀錄 (全新專屬介面)
+# 模式 B：DEMO 實驗紀錄
 # ==========================================
 elif app_mode == "🧪 DEMO 實驗紀錄":
     tab_d1, tab_d2 = st.tabs(["🔍 參數查詢", "➕ 新增實驗紀錄"])
@@ -240,7 +321,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             
             st.write("---")
             st.markdown("##### ⚙️ 各站機台參數設定")
-            # 使用折疊區塊讓手機版不會太長
             with st.expander("📍 預貼機參數"):
                 input_d_pre = st.text_area("預貼機設定 (溫度/壓力/速度/空調等)", key="d_pre")
             with st.expander("📍 1st 壓模機參數"):
