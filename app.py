@@ -280,13 +280,21 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             for index, row in filtered_demo.iterrows():
                 photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
                 
-                # 只有當參數不是 "無" 時，才顯示該機台的區塊
-                pre_html = f"<b>🔹 預貼機參數：</b><br>{str(row.get('Pre_Lam', '')).replace(chr(10), '<br>')}<br><br>" if row.get('Pre_Lam', '') != "無" else ""
-                lam1_html = f"<b>🔹 1st 壓模：</b><br>{str(row.get('Lam_1st', '')).replace(chr(10), '<br>')}<br><br>" if row.get('Lam_1st', '') != "無" else ""
-                lam2_html = f"<b>🔹 2nd 壓模：</b><br>{str(row.get('Lam_2nd', '')).replace(chr(10), '<br>')}<br><br>" if row.get('Lam_2nd', '') != "無" else ""
-                lam3_html = f"<b>🔹 3rd 壓模：</b><br>{str(row.get('Lam_3rd', '')).replace(chr(10), '<br>')}" if row.get('Lam_3rd', '') != "無" else ""
+                # 📌 關鍵修正：定義「要隱藏的關鍵字」清單，並強制去除所有隱藏空白
+                hide_words = ["", "無", "nan", "None", "NaN"]
                 
-                # 如果所有機台都沒填，就不顯示那個灰底的參數框
+                val_pre = str(row.get('Pre_Lam', '')).strip()
+                val_lam1 = str(row.get('Lam_1st', '')).strip()
+                val_lam2 = str(row.get('Lam_2nd', '')).strip()
+                val_lam3 = str(row.get('Lam_3rd', '')).strip()
+
+                # 只有當參數「不在」隱藏清單裡面時，才組裝那段 HTML
+                pre_html = f"<b>🔹 預貼機參數：</b><br>{val_pre.replace(chr(10), '<br>')}<br><br>" if val_pre not in hide_words else ""
+                lam1_html = f"<b>🔹 1st 壓模：</b><br>{val_lam1.replace(chr(10), '<br>')}<br><br>" if val_lam1 not in hide_words else ""
+                lam2_html = f"<b>🔹 2nd 壓模：</b><br>{val_lam2.replace(chr(10), '<br>')}<br><br>" if val_lam2 not in hide_words else ""
+                lam3_html = f"<b>🔹 3rd 壓模：</b><br>{val_lam3.replace(chr(10), '<br>')}" if val_lam3 not in hide_words else ""
+                
+                # 如果所有機台都沒填 (HTML都為空)，就不顯示那個灰底的參數框
                 params_block = ""
                 if pre_html or lam1_html or lam2_html or lam3_html:
                     params_block = f"""
@@ -327,7 +335,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             
             input_d_recipe = st.text_input("配方 NO. (Recipe)")
             
-            # 📌 預先定義好模板變數，方便後面拿來比對
             sub_template = "板材類型：\n膜材供應商/型號/厚度：\n基板大小/基板厚度："
             pre_template = "空調使用 (有/無)：\n預貼溫度 (℃)：\n預貼壓力 (MPa)：\n預貼速度 (m/min)："
             lam_template = "上熱盤溫度 (℃)：\n下熱盤溫度 (℃)：\n真空設定 (Pa)：\n真空到達 (Pa)：\n壓合壓力 (MPa)：\n抽真空時間 (sec)：\n壓合時間 (sec)："
@@ -358,7 +365,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                     st.error("⚠️ 請至少填寫操作人、客戶名稱與設備類型！")
                 else:
                     with st.spinner("寫入實驗數據中..."):
-                        # 📌 神奇的清理邏輯：如果輸入的文字「完全等於」模板，就把他清空變成 "無"
                         if input_d_substrate.strip() == sub_template.strip(): input_d_substrate = "無"
                         if input_d_pre.strip() == pre_template.strip(): input_d_pre = "無"
                         if input_d_1st.strip() == lam_template.strip(): input_d_1st = "無"
