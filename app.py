@@ -20,7 +20,7 @@ if "success_msg" not in st.session_state:
 # 📌 你的 Google Apps Script 專屬接收站網址
 GAS_URL = "https://script.google.com/macros/s/AKfycbxEVcNlZjjFEmkQmH8Ft-P8mVTSQllsfFF0Khf4YE8lmuOvRQBU8lzocmFs04oMm6g5/exec"
 
-# 1. 取得金鑰並連線到 Google Sheets (同時載入兩張表)
+# 1. 取得金鑰並連線到 Google Sheets
 @st.cache_resource 
 def init_connection():
     creds_dict = json.loads(st.secrets["gcp_credentials"])
@@ -30,7 +30,6 @@ def init_connection():
     ]
     creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
     gc = gspread.authorize(creds)
-    # 📌 連線到兩張不同的工作表
     sheet_maint = gc.open("設備維修知識庫").worksheet("維修紀錄")
     sheet_demo = gc.open("設備維修知識庫").worksheet("實驗參數")
     return sheet_maint, sheet_demo
@@ -48,7 +47,7 @@ def upload_image(image_file, file_name):
     response = requests.post(GAS_URL, data=payload)
     return response.text 
 
-# 3. 讀取試算表資料 (依據模式讀取不同的表)
+# 3. 讀取試算表資料
 @st.cache_data(ttl=60)
 def load_data(mode):
     if mode == "maint":
@@ -117,7 +116,6 @@ if app_mode == "🔧 現場維修系統":
     tab1, tab2, tab3 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄", "📊 數據分析"])
     df = load_data("maint")
 
-    # 📌 完美修復：把原本的分類功能加回來了！
     with tab1:
         search_keyword = st.text_input("🔍 全域搜尋 (例如: 日期, 廠區, 問題 ... 等 關鍵字)")
         filtered_df = df.copy()
@@ -219,6 +217,11 @@ if app_mode == "🔧 現場維修系統":
                         st.session_state.form_key += 1
                         st.rerun()
 
+        # 📌 修正：把維修系統的成功訊息搬進 tab2 裡面
+        if st.session_state.success_msg:
+            st.success(st.session_state.success_msg)
+            st.session_state.success_msg = ""
+
     with tab3:
         st.subheader("📈 維修數據統計看板")
         if not df.empty:
@@ -278,28 +281,26 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             for index, row in filtered_demo.iterrows():
                 photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
                 
-                # DEMO 專用卡片排版
+                # 📌 修正：把 DEMO 卡片的 HTML 靠左貼齊，防止變成程式碼灰框
                 st.markdown(f"""
-                <div class="glide-card">
-                <div class="glide-title">🧪 配方: {row.get('Recipe_NO', '未命名')} | 機台: {row.get('Equipment', '')}</div>
-                <div class="glide-tag">📅 {row.get('Date', '')}</div>
-                <div class="glide-tag">🏢 {row.get('Customer', '')}</div>
-                <div class="glide-tag">👤 操作: {row.get('Operator', '')}</div>
-                <div class="glide-tag">📦 數量: {row.get('Qty', '')}</div>
-                <div class="glide-subtitle"><b>基材/膜材：</b>{row.get('Substrate_Info', '')}</div>
-                
-                <div style="background-color:#F9F9F9; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px; color:#555;">
-                    <b>🔹 預貼機參數：</b> {row.get('Pre_Lam', '無')}<br>
-                    <b>🔹 1st 壓模：</b> {row.get('Lam_1st', '無')}<br>
-                    <b>🔹 2nd 壓模：</b> {row.get('Lam_2nd', '無')}<br>
-                    <b>🔹 3rd 壓模：</b> {row.get('Lam_3rd', '無')}
-                </div>
-                
-                <div class="glide-subtitle"><b>📝 備註與異常：</b>{row.get('Remarks', '無')}</div>
-                <div class="glide-solution"><b>🗣️ 客戶反饋：</b>{row.get('Feedback', '無')}</div>
-                {photo_html}
-                </div>
-                """, unsafe_allow_html=True)
+<div class="glide-card">
+<div class="glide-title">🧪 配方: {row.get('Recipe_NO', '未命名')} | 機台: {row.get('Equipment', '')}</div>
+<div class="glide-tag">📅 {row.get('Date', '')}</div>
+<div class="glide-tag">🏢 {row.get('Customer', '')}</div>
+<div class="glide-tag">👤 操作: {row.get('Operator', '')}</div>
+<div class="glide-tag">📦 數量: {row.get('Qty', '')}</div>
+<div class="glide-subtitle"><b>基材/膜材：</b>{row.get('Substrate_Info', '')}</div>
+<div style="background-color:#F9F9F9; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px; color:#555;">
+<b>🔹 預貼機參數：</b> {row.get('Pre_Lam', '無')}<br>
+<b>🔹 1st 壓模：</b> {row.get('Lam_1st', '無')}<br>
+<b>🔹 2nd 壓模：</b> {row.get('Lam_2nd', '無')}<br>
+<b>🔹 3rd 壓模：</b> {row.get('Lam_3rd', '無')}
+</div>
+<div class="glide-subtitle"><b>📝 備註與異常：</b>{row.get('Remarks', '無')}</div>
+<div class="glide-solution"><b>🗣️ 客戶反饋：</b>{row.get('Feedback', '無')}</div>
+{photo_html}
+</div>
+""", unsafe_allow_html=True)
         else:
             st.info("目前還沒有 DEMO 實驗紀錄，趕快去新增一筆吧！")
 
@@ -358,7 +359,7 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                         st.session_state.form_key += 1
                         st.rerun()
 
-# --- 顯示成功訊息 ---
-if st.session_state.success_msg:
-    st.success(st.session_state.success_msg)
-    st.session_state.success_msg = ""
+        # 📌 修正：把 DEMO 系統的成功訊息也搬進 tab_d2 裡面
+        if st.session_state.success_msg:
+            st.success(st.session_state.success_msg)
+            st.session_state.success_msg = ""
