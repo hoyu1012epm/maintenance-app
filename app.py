@@ -280,6 +280,21 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             for index, row in filtered_demo.iterrows():
                 photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
                 
+                # 只有當參數不是 "無" 時，才顯示該機台的區塊
+                pre_html = f"<b>🔹 預貼機參數：</b><br>{str(row.get('Pre_Lam', '')).replace(chr(10), '<br>')}<br><br>" if row.get('Pre_Lam', '') != "無" else ""
+                lam1_html = f"<b>🔹 1st 壓模：</b><br>{str(row.get('Lam_1st', '')).replace(chr(10), '<br>')}<br><br>" if row.get('Lam_1st', '') != "無" else ""
+                lam2_html = f"<b>🔹 2nd 壓模：</b><br>{str(row.get('Lam_2nd', '')).replace(chr(10), '<br>')}<br><br>" if row.get('Lam_2nd', '') != "無" else ""
+                lam3_html = f"<b>🔹 3rd 壓模：</b><br>{str(row.get('Lam_3rd', '')).replace(chr(10), '<br>')}" if row.get('Lam_3rd', '') != "無" else ""
+                
+                # 如果所有機台都沒填，就不顯示那個灰底的參數框
+                params_block = ""
+                if pre_html or lam1_html or lam2_html or lam3_html:
+                    params_block = f"""
+                    <div style="background-color:#F9F9F9; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px; color:#555;">
+                    {pre_html}{lam1_html}{lam2_html}{lam3_html}
+                    </div>
+                    """
+
                 st.markdown(f"""
 <div class="glide-card">
 <div class="glide-title">🧪 配方: {row.get('Recipe_NO', '未命名')} | 機台: {row.get('Equipment', '')}</div>
@@ -288,12 +303,7 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
 <div class="glide-tag">👤 操作: {row.get('Operator', '')}</div>
 <div class="glide-tag">📦 數量: {row.get('Qty', '')}</div>
 <div class="glide-subtitle"><b>基材/膜材：</b><br>{str(row.get('Substrate_Info', '')).replace(chr(10), '<br>')}</div>
-<div style="background-color:#F9F9F9; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px; color:#555;">
-<b>🔹 預貼機參數：</b><br>{str(row.get('Pre_Lam', '無')).replace(chr(10), '<br>')}<br><br>
-<b>🔹 1st 壓模：</b><br>{str(row.get('Lam_1st', '無')).replace(chr(10), '<br>')}<br><br>
-<b>🔹 2nd 壓模：</b><br>{str(row.get('Lam_2nd', '無')).replace(chr(10), '<br>')}<br><br>
-<b>🔹 3rd 壓模：</b><br>{str(row.get('Lam_3rd', '無')).replace(chr(10), '<br>')}
-</div>
+{params_block}
 <div class="glide-subtitle"><b>📝 備註與異常：</b>{row.get('Remarks', '無')}</div>
 <div class="glide-solution"><b>🗣️ 客戶反饋：</b>{row.get('Feedback', '無')}</div>
 {photo_html}
@@ -317,18 +327,16 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             
             input_d_recipe = st.text_input("配方 NO. (Recipe)")
             
-            # 📌 加入基材資訊的預設模板
+            # 📌 預先定義好模板變數，方便後面拿來比對
             sub_template = "板材類型：\n膜材供應商/型號/厚度：\n基板大小/基板厚度："
-            input_d_substrate = st.text_area("基材資訊", value=sub_template, height=100)
-            
-            st.write("---")
-            st.markdown("##### ⚙️ 各站機台參數設定 (請直接於冒號後方填寫數值)")
-            
-            # 📌 根據你的 Excel 設計，加入機台參數的預設模板
             pre_template = "空調使用 (有/無)：\n預貼溫度 (℃)：\n預貼壓力 (MPa)：\n預貼速度 (m/min)："
             lam_template = "上熱盤溫度 (℃)：\n下熱盤溫度 (℃)：\n真空設定 (Pa)：\n真空到達 (Pa)：\n壓合壓力 (MPa)：\n抽真空時間 (sec)：\n壓合時間 (sec)："
             
-            # 使用 height 參數將輸入框拉高，讓模板文字一次完整顯示
+            input_d_substrate = st.text_area("基材資訊", value=sub_template, height=100)
+            
+            st.write("---")
+            st.markdown("##### ⚙️ 各站機台參數設定 (不使用的機台請直接略過)")
+            
             with st.expander("📍 預貼機參數"):
                 input_d_pre = st.text_area("預貼機設定", value=pre_template, height=120, key="d_pre")
             with st.expander("📍 1st 壓模機參數"):
@@ -350,6 +358,13 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                     st.error("⚠️ 請至少填寫操作人、客戶名稱與設備類型！")
                 else:
                     with st.spinner("寫入實驗數據中..."):
+                        # 📌 神奇的清理邏輯：如果輸入的文字「完全等於」模板，就把他清空變成 "無"
+                        if input_d_substrate.strip() == sub_template.strip(): input_d_substrate = "無"
+                        if input_d_pre.strip() == pre_template.strip(): input_d_pre = "無"
+                        if input_d_1st.strip() == lam_template.strip(): input_d_1st = "無"
+                        if input_d_2nd.strip() == lam_template.strip(): input_d_2nd = "無"
+                        if input_d_3rd.strip() == lam_template.strip(): input_d_3rd = "無"
+
                         log_id = datetime.now(tz_tw).strftime("DEMO-%y%m%d-%H%M")
                         photo_url = upload_image(upload_d_file, f"{log_id}.jpg") if upload_d_file else ""
                         
