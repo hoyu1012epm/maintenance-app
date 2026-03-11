@@ -40,27 +40,22 @@ def format_params_html(raw_text):
         valid_lines.append(line)
     return "<br>".join(valid_lines) if valid_lines else ""
 
-# 📌 壓模機專屬輸入 UI
+# 📌 更新：刪除真空度，並將剩下的 4 個參數排成對稱的 2x2 矩陣
 def render_lam_inputs(stage_name, key_prefix):
     with st.expander(f"📍 {stage_name} 參數"):
-        t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t")
-        
         c1, c2 = st.columns(2)
         with c1:
-            v_set = st.text_input("真空度 (hPa)", key=f"{key_prefix}_vs")
+            t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t")
+            p = st.text_input("壓合壓力 (kgf/cm²)", key=f"{key_prefix}_p")
         with c2:
             t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv")
-            
-        c3, c4 = st.columns(2)
-        with c3:
-            p = st.text_input("壓合壓力 (kgf/cm²)", key=f"{key_prefix}_p")
-        with c4:
             t_p = st.text_input("壓合時間 (sec)", key=f"{key_prefix}_tp")
             
         return {
             "溫度 (℃)": t, 
-            "真空度 (hPa)": v_set, "抽真空時間 (sec)": t_v,
-            "壓合壓力 (kgf/cm²)": p, "壓合時間 (sec)": t_p
+            "抽真空時間 (sec)": t_v,
+            "壓合壓力 (kgf/cm²)": p, 
+            "壓合時間 (sec)": t_p
         }
 # ---------------------------------------------
 
@@ -311,7 +306,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
         with st.form(f"demo_form_{st.session_state.form_key}"):
             st.subheader("🧪 填寫 DEMO 機測試紀錄")
             
-            # 📌 佈局調整：將客戶名稱與操作人位置對調
             c1, c2 = st.columns(2)
             with c1: input_d_date = st.date_input("測試日期", datetime.now(tz_tw).date())
             with c2: input_d_customer = st.text_input("客戶名稱")
@@ -329,7 +323,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             st.write("---")
             st.markdown("##### ⚙️ 各站機台參數設定 (沒填寫的欄位將自動隱藏)")
             
-            # 📌 刪除空調使用，並重新排列為左右對稱的兩欄
             with st.expander("📍 預貼機參數"):
                 c_p1, c_p2 = st.columns(2)
                 with c_p1: 
@@ -355,7 +348,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                 else:
                     with st.spinner("打包參數並寫入雲端中..."):
                         input_d_substrate = pack_params({"板材類型": sub_t, "膜材": sub_f, "基板尺寸": sub_d})
-                        # 📌 配合 UI 調整打包邏輯，移除空調使用
                         input_d_pre = pack_params({"預貼溫度 (℃)": pre_t, "預貼壓力 (MPa)": pre_p, "預貼速度 (m/min)": pre_s, "前後留邊量": pre_m})
                         input_d_1st = pack_params(lam1_dict)
                         input_d_2nd = pack_params(lam2_dict)
@@ -364,7 +356,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                         log_id = datetime.now(tz_tw).strftime("DEMO-%y%m%d-%H%M")
                         photo_url = upload_image(upload_d_file, f"{log_id}.jpg") if upload_d_file else ""
                         
-                        # ⚠️ 這裡保持不動，確保寫入 Google 試算表時對應正確的欄位順序！
                         new_demo_row = [
                             log_id, input_d_date.strftime("%Y-%m-%d"), input_d_operator, "", 
                             input_d_customer, input_d_equip, "", input_d_substrate, 
