@@ -269,7 +269,8 @@ if app_mode == "🔧 現場維修系統":
 # 模式 B：DEMO 實驗紀錄
 # ==========================================
 elif app_mode == "🧪 DEMO 實驗紀錄":
-    tab_d1, tab_d2, tab_d3 = st.tabs(["🔍 參數查詢", "➕ 新增實驗紀錄(NT+CVP)", "➕ 新增 V-160 紀錄"])
+    # 📌 統一分頁名稱的格式
+    tab_d1, tab_d2, tab_d3 = st.tabs(["🔍 參數查詢", "➕ 新增實驗紀錄 (NT+CVP)", "➕ 新增實驗紀錄 (V-160)"])
     df_d = load_data("demo")
 
     with tab_d1:
@@ -414,9 +415,7 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             
             st.write("---")
             
-            # 📌 V-160 專屬參數區塊 (完全依照工程師邏輯排序)
             with st.expander("📍 V-160 參數"):
-                
                 # 第 1 排：模式與真空
                 c_v1, c_v2 = st.columns(2)
                 with c_v1: v_mode = st.selectbox("加壓模式", ["", "上", "下", "上下"], key="v_mode")
@@ -463,7 +462,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                     with st.spinner("打包 V-160 參數並寫入雲端中..."):
                         input_v_substrate = pack_params({"板材類型": v_sub_t, "膜材": v_sub_f, "基板尺寸": v_sub_d})
                         
-                        # 📌 完全對齊前台順序的打包邏輯
                         v160_dict = {
                             "加壓模式": v_mode,
                             "下真空時間 (sec)": v_tv,
