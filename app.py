@@ -269,7 +269,6 @@ if app_mode == "🔧 現場維修系統":
 # 模式 B：DEMO 實驗紀錄
 # ==========================================
 elif app_mode == "🧪 DEMO 實驗紀錄":
-    # 📌 新增了 V-160 的專屬分頁
     tab_d1, tab_d2, tab_d3 = st.tabs(["🔍 參數查詢", "➕ 新增實驗紀錄(NT+CVP)", "➕ 新增 V-160 紀錄"])
     df_d = load_data("demo")
 
@@ -296,8 +295,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                 html_l3 = format_params_html(row.get('Lam_3rd', ''))
                 
                 blocks = []
-                
-                # 📌 智慧顯示引擎：判斷如果是 V-160 機台，直接變更顯示標題
                 if "V-160" in equip_name.upper() or "V160" in equip_name.upper():
                     if html_l1: blocks.append(f"<b>🔹 V-160 參數：</b><br>{html_l1}")
                 else:
@@ -330,17 +327,12 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
         else:
             st.info("目前還沒有 DEMO 實驗紀錄，趕快去新增一筆吧！")
 
-    # ==========================================
-    # 原本的 NT+CVP 填寫表單
-    # ==========================================
     with tab_d2:
         with st.form(f"demo_form_{st.session_state.form_key}"):
             st.subheader("🧪 填寫實驗紀錄 (NT+CVP)")
-            
             c1, c2 = st.columns(2)
             with c1: input_d_date = st.date_input("測試日期", datetime.now(tz_tw).date(), key="d_date")
             with c2: input_d_customer = st.text_input("客戶名稱", key="d_cust")
-            
             c4, c5 = st.columns(2)
             with c4: input_d_operator = st.text_input("操作人", key="d_oper")
             with c5: input_d_equip = st.text_input("設備類型 (如: CVP-1600SP)", key="d_equip")
@@ -412,7 +404,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             
             c4, c5 = st.columns(2)
             with c4: input_v_operator = st.text_input("操作人", key="v_oper")
-            # 預設直接幫你填好 V-160
             with c5: input_v_equip = st.text_input("設備類型", value="V-160", key="v_equip") 
             
             with st.expander("📍 基材資訊 (沒填寫的將自動隱藏)"):
@@ -423,20 +414,39 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             
             st.write("---")
             
-            # 📌 依照你的截圖，客製化 V-160 的專屬參數區塊
+            # 📌 V-160 專屬參數區塊 (上下對稱防走位排版)
             with st.expander("📍 V-160 參數"):
-                c_v1, c_v2, c_v3 = st.columns(3)
-                with c_v1: v_tc = st.text_input("腔體溫度 (℃)", key="v_tc")
-                with c_v2: v_tt = st.text_input("上熱盤溫度 (℃)", key="v_tt")
-                with c_v3: v_tb = st.text_input("下熱盤溫度 (℃)", key="v_tb")
                 
-                c_v4, c_v5 = st.columns(2)
-                with c_v4: v_vs = st.text_input("真空設定 (hPa)", key="v_vs")
-                with c_v5: v_tv = st.text_input("抽真空時間 (sec)", key="v_tv")
+                # 第 1 排：模式與真空
+                c_v1, c_v2 = st.columns(2)
+                with c_v1: v_mode = st.selectbox("加壓模式", ["", "上", "下", "上下"], key="v_mode")
+                with c_v2: v_tv = st.text_input("下真空時間 (sec)", key="v_tv")
                 
-                c_v6, c_v7 = st.columns(2)
-                with c_v6: v_p = st.text_input("加壓壓力 (kgf/cm²)", key="v_p")
-                with c_v7: v_tp = st.text_input("加壓時間 (sec)", key="v_tp")
+                st.write("---")
+                
+                # 第 2 排：溫度對稱
+                c_v3, c_v4 = st.columns(2)
+                with c_v3: v_tt = st.text_input("上溫度 (℃)", key="v_tt")
+                with c_v4: v_tb = st.text_input("下溫度 (℃)", key="v_tb")
+                
+                # 第 3 排：硅膠墊垂落時間對稱
+                c_v5, c_v6 = st.columns(2)
+                with c_v5: v_tdrop_t = st.text_input("上硅膠墊垂落時間 (sec)", key="v_tdrop_t")
+                with c_v6: v_tdrop_b = st.text_input("下硅膠墊垂落時間 (sec)", key="v_tdrop_b")
+                
+                # 第 4 排：加壓壓力對稱
+                c_v7, c_v8 = st.columns(2)
+                with c_v7: v_pt = st.text_input("上氣囊加壓壓力 (kgf/cm²)", key="v_pt")
+                with c_v8: v_pb = st.text_input("下加壓壓力 (kgf/cm²)", key="v_pb")
+                
+                # 第 5 排：加壓時間對稱
+                c_v9, c_v10 = st.columns(2)
+                with c_v9: v_tpt = st.text_input("上氣囊加壓時間 (sec)", key="v_tpt")
+                with c_v10: v_tpb = st.text_input("下加壓時間 (sec)", key="v_tpb")
+                
+                # 第 6 排：底部專屬延遲時間
+                c_v11, c_v12 = st.columns(2)
+                with c_v11: v_dly_b = st.text_input("下加壓延遲時間 (sec)", key="v_dly_b")
                 
             st.write("---")
             input_v_qty = st.text_input("壓合數量 (片/次)", key="v_qty")
@@ -451,18 +461,21 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                     with st.spinner("打包 V-160 參數並寫入雲端中..."):
                         input_v_substrate = pack_params({"板材類型": v_sub_t, "膜材": v_sub_f, "基板尺寸": v_sub_d})
                         
-                        # 把 V-160 的參數打包成一個包裹
+                        # 📌 完整打包 V-160 參數 (順序也對齊上下邏輯)
                         v160_dict = {
-                            "腔體溫度 (℃)": v_tc, "上熱盤溫度 (℃)": v_tt, "下熱盤溫度 (℃)": v_tb,
-                            "真空設定 (hPa)": v_vs, "抽真空時間 (sec)": v_tv,
-                            "加壓壓力 (kgf/cm²)": v_p, "加壓時間 (sec)": v_tp
+                            "加壓模式": v_mode,
+                            "下真空時間 (sec)": v_tv,
+                            "上溫度 (℃)": v_tt, "下溫度 (℃)": v_tb,
+                            "上硅膠墊垂落時間 (sec)": v_tdrop_t, "下硅膠墊垂落時間 (sec)": v_tdrop_b,
+                            "上氣囊加壓壓力 (kgf/cm²)": v_pt, "下加壓壓力 (kgf/cm²)": v_pb,
+                            "上氣囊加壓時間 (sec)": v_tpt, "下加壓時間 (sec)": v_tpb,
+                            "下加壓延遲時間 (sec)": v_dly_b
                         }
                         input_v_params = pack_params(v160_dict)
 
                         log_id = datetime.now(tz_tw).strftime("DEMO-%y%m%d-%H%M")
                         photo_url = upload_image(upload_v_file, f"{log_id}.jpg") if upload_v_file else ""
                         
-                        # 📌 完美融入：把 V160 參數放在 1st 壓模機的位置，其他填寫 "無"
                         new_v160_row = [
                             log_id, input_v_date.strftime("%Y-%m-%d"), input_v_operator, 
                             input_v_customer, input_v_equip, input_v_substrate, 
