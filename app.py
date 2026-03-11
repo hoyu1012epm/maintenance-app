@@ -269,7 +269,6 @@ if app_mode == "🔧 現場維修系統":
 # 模式 B：DEMO 實驗紀錄
 # ==========================================
 elif app_mode == "🧪 DEMO 實驗紀錄":
-    # 📌 統一分頁名稱的格式
     tab_d1, tab_d2, tab_d3 = st.tabs(["🔍 參數查詢", "➕ 新增實驗紀錄 (NT+CVP)", "➕ 新增實驗紀錄 (V-160)"])
     df_d = load_data("demo")
 
@@ -405,7 +404,8 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             
             c4, c5 = st.columns(2)
             with c4: input_v_operator = st.text_input("操作人", key="v_oper")
-            with c5: input_v_equip = st.text_input("設備類型", value="V-160", key="v_equip") 
+            # 📌 加入 disabled=True，變成反灰的鎖定狀態，不允許手動修改
+            with c5: input_v_equip = st.text_input("設備類型", value="V-160", disabled=True, key="v_equip") 
             
             with st.expander("📍 基材資訊 (沒填寫的將自動隱藏)"):
                 c_vs1, c_vs2 = st.columns(2)
@@ -416,35 +416,26 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             st.write("---")
             
             with st.expander("📍 V-160 參數"):
-                # 第 1 排：模式與真空
+                
                 c_v1, c_v2 = st.columns(2)
                 with c_v1: v_mode = st.selectbox("加壓模式", ["", "上", "下", "上下"], key="v_mode")
                 with c_v2: v_tv = st.text_input("下真空時間 (sec)", key="v_tv")
                 
-                # 第 2 排：溫度對稱
                 c_v3, c_v4 = st.columns(2)
                 with c_v3: v_tt = st.text_input("上溫度 (℃)", key="v_tt")
                 with c_v4: v_tb = st.text_input("下溫度 (℃)", key="v_tb")
                 
                 st.write("---")
-                
-                # 第 3 排：上硅膠墊
                 v_tdrop_t = st.text_input("上硅膠墊垂落時間 (sec)", key="v_tdrop_t")
                 
-                # 第 4 排：上加壓
                 c_v5, c_v6 = st.columns(2)
                 with c_v5: v_pt = st.text_input("上氣囊加壓壓力 (kgf/cm²)", key="v_pt")
                 with c_v6: v_tpt = st.text_input("上氣囊加壓時間 (sec)", key="v_tpt")
                 
                 st.write("---")
-                
-                # 第 5 排：下延遲
                 v_dly_b = st.text_input("下加壓延遲時間 (sec)", key="v_dly_b")
-                
-                # 第 6 排：下硅膠墊
                 v_tdrop_b = st.text_input("下硅膠墊垂落時間 (sec)", key="v_tdrop_b")
                 
-                # 第 7 排：下加壓
                 c_v7, c_v8 = st.columns(2)
                 with c_v7: v_pb = st.text_input("下加壓壓力 (kgf/cm²)", key="v_pb")
                 with c_v8: v_tpb = st.text_input("下加壓時間 (sec)", key="v_tpb")
@@ -456,8 +447,8 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             upload_v_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key="v_photo")
             
             if st.form_submit_button("送出 V-160 紀錄"):
-                if not all([input_v_operator, input_v_customer, input_v_equip]):
-                    st.error("⚠️ 請至少填寫操作人、客戶名稱與設備類型！")
+                if not all([input_v_operator, input_v_customer]):
+                    st.error("⚠️ 請至少填寫操作人與客戶名稱！")
                 else:
                     with st.spinner("打包 V-160 參數並寫入雲端中..."):
                         input_v_substrate = pack_params({"板材類型": v_sub_t, "膜材": v_sub_f, "基板尺寸": v_sub_d})
