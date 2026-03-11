@@ -40,41 +40,41 @@ def format_params_html(raw_text):
         valid_lines.append(line)
     return "<br>".join(valid_lines) if valid_lines else ""
 
-# 📌 1st / 2nd 壓模機專屬輸入 UI
-def render_lam_inputs(stage_name, key_prefix):
+# 📌 1st / 2nd 壓模機專屬輸入 UI (加入了動態 Key 確保成功後清空)
+def render_lam_inputs(stage_name, key_prefix, fk):
     with st.expander(f"📍 {stage_name} 參數"):
         c1, c2 = st.columns(2)
-        with c1: t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t")
-        with c2: t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv")
+        with c1: t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t_{fk}")
+        with c2: t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv_{fk}")
             
         c3, c4 = st.columns(2)
-        with c3: p = st.text_input("加壓壓力 (kgf/cm²)", key=f"{key_prefix}_p")
-        with c4: t_p = st.text_input("加壓時間 (sec)", key=f"{key_prefix}_tp")
+        with c3: p = st.text_input("加壓壓力 (kgf/cm²)", key=f"{key_prefix}_p_{fk}")
+        with c4: t_p = st.text_input("加壓時間 (sec)", key=f"{key_prefix}_tp_{fk}")
             
         return {
             "溫度 (℃)": t, "抽真空時間 (sec)": t_v,
             "加壓壓力 (kgf/cm²)": p, "加壓時間 (sec)": t_p
         }
 
-# 📌 3rd 壓模機 (伺服控制) 專屬輸入 UI
-def render_lam3_inputs(stage_name, key_prefix):
+# 📌 3rd 壓模機 (伺服控制) 專屬輸入 UI (加入了動態 Key 確保成功後清空)
+def render_lam3_inputs(stage_name, key_prefix, fk):
     with st.expander(f"📍 {stage_name} 參數 (伺服控制)"):
-        mode = st.selectbox("控制模式", ["", "Position", "Press", "Fit"], key=f"{key_prefix}_mode")
+        mode = st.selectbox("控制模式", ["", "Position", "Press", "Fit"], key=f"{key_prefix}_mode_{fk}")
         st.write("---")
         c1, c2 = st.columns(2)
-        with c1: t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t")
-        with c2: t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv")
+        with c1: t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t_{fk}")
+        with c2: t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv_{fk}")
         c3, c4 = st.columns(2)
-        with c3: thick = st.text_input("目前產品厚度 (mm)", key=f"{key_prefix}_thk")
+        with c3: thick = st.text_input("目前產品厚度 (mm)", key=f"{key_prefix}_thk_{fk}")
         st.markdown("###### 🎯 模式專屬參數 (請對應上方模式填寫，未填將自動隱藏)")
         c5, c6, c7 = st.columns(3)
-        with c5: pos_v = st.text_input("【Position】厚度補償", key=f"{key_prefix}_pos")
-        with c6: press_v = st.text_input("【Press】加壓壓力", key=f"{key_prefix}_prs")
-        with c7: fit_v = st.text_input("【Fit】推進量", key=f"{key_prefix}_fit")
+        with c5: pos_v = st.text_input("【Position】厚度補償", key=f"{key_prefix}_pos_{fk}")
+        with c6: press_v = st.text_input("【Press】加壓壓力", key=f"{key_prefix}_prs_{fk}")
+        with c7: fit_v = st.text_input("【Fit】推進量", key=f"{key_prefix}_fit_{fk}")
         st.write("---")
         c8, c9 = st.columns(2)
-        with c8: spd = st.text_input("加壓推速度 (mm/sec)", key=f"{key_prefix}_spd")
-        with c9: t_p = st.text_input("加壓時間 (sec)", key=f"{key_prefix}_tp")
+        with c8: spd = st.text_input("加壓推速度 (mm/sec)", key=f"{key_prefix}_spd_{fk}")
+        with c9: t_p = st.text_input("加壓時間 (sec)", key=f"{key_prefix}_tp_{fk}")
             
         return {
             "控制模式": mode, "溫度 (℃)": t, "抽真空時間 (sec)": t_v, "目前產品厚度 (mm)": thick, 
@@ -209,21 +209,23 @@ if app_mode == "🔧 現場維修系統":
             st.warning("目前試算表中沒有資料喔！")
 
     with tab2:
-        with st.form(f"maint_form_{st.session_state.form_key}"):
+        fk = st.session_state.form_key
+        with st.form(f"maint_form_{fk}"):
             st.subheader("📝 填寫維修紀錄")
             comp_options = ["預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"]
             
-            input_date = st.date_input("日期", datetime.now(tz_tw).date())
-            input_engineer = st.text_input("填單人員")
-            input_customer = st.text_input("客戶與廠區")
-            input_machine = st.selectbox("設備機型", ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"], index=None)
-            input_component = st.selectbox("異常部件", comp_options, index=None)
-            input_issue = st.text_area("問題描述")
-            input_solution = st.text_area("解決方案")
-            upload_file = st.file_uploader("🖼️ 附加現場照片", type=['jpg', 'png', 'jpeg'])
+            input_date = st.date_input("日期", datetime.now(tz_tw).date(), key=f"m_date_{fk}")
+            input_engineer = st.text_input("填單人員", key=f"m_eng_{fk}")
+            input_customer = st.text_input("客戶與廠區", key=f"m_cust_{fk}")
+            input_machine = st.selectbox("設備機型", ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"], index=None, key=f"m_mach_{fk}")
+            input_component = st.selectbox("異常部件", comp_options, index=None, key=f"m_comp_{fk}")
+            input_issue = st.text_area("問題描述", key=f"m_iss_{fk}")
+            input_solution = st.text_area("解決方案", key=f"m_sol_{fk}")
+            upload_file = st.file_uploader("🖼️ 附加現場照片", type=['jpg', 'png', 'jpeg'], key=f"m_photo_{fk}")
             
-            if st.form_submit_button("送出維修紀錄"):
+            if st.form_submit_button("送出維修紀錄", key=f"btn_m_{fk}"):
                 if not all([input_engineer, input_customer, input_machine, input_component, input_issue, input_solution]):
+                    # 資料不齊全時亮紅燈，但 form_key 不增加，資料完美保留！
                     st.error("⚠️ 請確認所有必填欄位都已填寫！")
                 else:
                     with st.spinner("寫入中..."):
@@ -232,6 +234,7 @@ if app_mode == "🔧 現場維修系統":
                         sheet_maint.append_row([log_id, input_date.strftime("%Y-%m-%d"), input_engineer, input_customer, input_machine, input_component, input_issue, input_solution, photo_url])
                         st.cache_data.clear()
                         st.session_state.success_msg = f"✅ 成功寫入資料庫！單號：{log_id}"
+                        # 成功送出後，增加 form_key，觸發重新載入，表單自動清空！
                         st.session_state.form_key += 1
                         st.rerun()
 
@@ -328,43 +331,44 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             st.info("目前還沒有 DEMO 實驗紀錄，趕快去新增一筆吧！")
 
     with tab_d2:
-        with st.form(f"demo_form_{st.session_state.form_key}"):
+        fk = st.session_state.form_key
+        with st.form(f"demo_form_{fk}"):
             st.subheader("🧪 填寫實驗紀錄 (NT+CVP)")
             c1, c2 = st.columns(2)
-            with c1: input_d_date = st.date_input("測試日期", datetime.now(tz_tw).date(), key="d_date")
-            with c2: input_d_customer = st.text_input("客戶名稱", key="d_cust")
+            with c1: input_d_date = st.date_input("測試日期", datetime.now(tz_tw).date(), key=f"d_date_{fk}")
+            with c2: input_d_customer = st.text_input("客戶名稱", key=f"d_cust_{fk}")
             c4, c5 = st.columns(2)
-            with c4: input_d_operator = st.text_input("操作人", key="d_oper")
-            with c5: input_d_equip = st.text_input("設備類型 (如: CVP-1600SP)", key="d_equip")
+            with c4: input_d_operator = st.text_input("操作人", key=f"d_oper_{fk}")
+            with c5: input_d_equip = st.text_input("設備類型 (如: CVP-1600SP)", key=f"d_equip_{fk}")
             
             with st.expander("📍 基材資訊 (沒填寫的將自動隱藏)"):
                 c_s1, c_s2 = st.columns(2)
-                with c_s1: sub_t = st.text_input("板材類型", key="s_t")
-                with c_s2: sub_f = st.text_input("膜材 (供應商/型號/厚度)", key="s_f")
-                sub_d = st.text_input("基板尺寸 (大小/厚度)", key="s_d")
+                with c_s1: sub_t = st.text_input("板材類型", key=f"s_t_{fk}")
+                with c_s2: sub_f = st.text_input("膜材 (供應商/型號/厚度)", key=f"s_f_{fk}")
+                sub_d = st.text_input("基板尺寸 (大小/厚度)", key=f"s_d_{fk}")
             
             st.write("---")
             st.markdown("##### ⚙️ 各站機台參數設定 (沒填寫的欄位將自動隱藏)")
             
             with st.expander("📍 預貼機參數"):
                 c_p1, c_p2 = st.columns(2)
-                with c_p1: pre_t = st.text_input("預貼溫度 (℃)", key="p_t")
-                with c_p2: pre_s = st.text_input("預貼速度 (m/min)", key="p_s")
+                with c_p1: pre_t = st.text_input("預貼溫度 (℃)", key=f"p_t_{fk}")
+                with c_p2: pre_s = st.text_input("預貼速度 (m/min)", key=f"p_s_{fk}")
                 c_p3, c_p4 = st.columns(2)
-                with c_p3: pre_p = st.text_input("預貼壓力 (MPa)", key="p_p")
-                with c_p4: pre_m = st.text_input("前後留邊量 (前mm / 後mm)", key="p_m")
+                with c_p3: pre_p = st.text_input("預貼壓力 (MPa)", key=f"p_p_{fk}")
+                with c_p4: pre_m = st.text_input("前後留邊量 (前mm / 後mm)", key=f"p_m_{fk}")
                     
-            lam1_dict = render_lam_inputs("1st 壓模機", "l1")
-            lam2_dict = render_lam_inputs("2nd 壓模機", "l2")
-            lam3_dict = render_lam3_inputs("3rd 壓模機", "l3")
+            lam1_dict = render_lam_inputs("1st 壓模機", "l1", fk)
+            lam2_dict = render_lam_inputs("2nd 壓模機", "l2", fk)
+            lam3_dict = render_lam3_inputs("3rd 壓模機", "l3", fk)
                 
             st.write("---")
-            input_d_qty = st.text_input("壓合數量 (片/次)", key="d_qty")
-            input_d_remark = st.text_area("備註 (測試變動說明、具體異常)", key="d_rmk")
-            input_d_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", key="d_fb")
-            upload_d_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key="d_photo")
+            input_d_qty = st.text_input("壓合數量 (片/次)", key=f"d_qty_{fk}")
+            input_d_remark = st.text_area("備註 (測試變動說明、具體異常)", key=f"d_rmk_{fk}")
+            input_d_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", key=f"d_fb_{fk}")
+            upload_d_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"d_photo_{fk}")
             
-            if st.form_submit_button("送出實驗紀錄"):
+            if st.form_submit_button("送出實驗紀錄", key=f"btn_d_{fk}"):
                 if not all([input_d_operator, input_d_customer, input_d_equip]):
                     st.error("⚠️ 請至少填寫操作人、客戶名稱與設備類型！")
                 else:
@@ -391,62 +395,59 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                         st.session_state.form_key += 1
                         st.rerun()
 
-    # ==========================================
-    # 全新的 V-160 專屬填寫表單
-    # ==========================================
     with tab_d3:
-        with st.form(f"v160_form_{st.session_state.form_key}"):
+        fk = st.session_state.form_key
+        with st.form(f"v160_form_{fk}"):
             st.subheader("🧪 填寫實驗紀錄 (V-160)")
             
             c1, c2 = st.columns(2)
-            with c1: input_v_date = st.date_input("測試日期", datetime.now(tz_tw).date(), key="v_date")
-            with c2: input_v_customer = st.text_input("客戶名稱", key="v_cust")
+            with c1: input_v_date = st.date_input("測試日期", datetime.now(tz_tw).date(), key=f"v_date_{fk}")
+            with c2: input_v_customer = st.text_input("客戶名稱", key=f"v_cust_{fk}")
             
             c4, c5 = st.columns(2)
-            with c4: input_v_operator = st.text_input("操作人", key="v_oper")
-            # 📌 加入 disabled=True，變成反灰的鎖定狀態，不允許手動修改
-            with c5: input_v_equip = st.text_input("設備類型", value="V-160", disabled=True, key="v_equip") 
+            with c4: input_v_operator = st.text_input("操作人", key=f"v_oper_{fk}")
+            with c5: input_v_equip = st.text_input("設備類型", value="V-160", disabled=True, key=f"v_equip_{fk}") 
             
             with st.expander("📍 基材資訊 (沒填寫的將自動隱藏)"):
                 c_vs1, c_vs2 = st.columns(2)
-                with c_vs1: v_sub_t = st.text_input("板材類型", key="v_s_t")
-                with c_vs2: v_sub_f = st.text_input("膜材 (供應商/型號/厚度)", key="v_s_f")
-                v_sub_d = st.text_input("基板尺寸 (大小/厚度)", key="v_s_d")
+                with c_vs1: v_sub_t = st.text_input("板材類型", key=f"v_s_t_{fk}")
+                with c_vs2: v_sub_f = st.text_input("膜材 (供應商/型號/厚度)", key=f"v_s_f_{fk}")
+                v_sub_d = st.text_input("基板尺寸 (大小/厚度)", key=f"v_s_d_{fk}")
             
             st.write("---")
             
             with st.expander("📍 V-160 參數"):
-                
                 c_v1, c_v2 = st.columns(2)
-                with c_v1: v_mode = st.selectbox("加壓模式", ["", "上", "下", "上下"], key="v_mode")
-                with c_v2: v_tv = st.text_input("下真空時間 (sec)", key="v_tv")
+                with c_v1: v_mode = st.selectbox("加壓模式", ["", "上", "下", "上下"], key=f"v_mode_{fk}")
+                with c_v2: v_tv = st.text_input("下真空時間 (sec)", key=f"v_tv_{fk}")
                 
                 c_v3, c_v4 = st.columns(2)
-                with c_v3: v_tt = st.text_input("上溫度 (℃)", key="v_tt")
-                with c_v4: v_tb = st.text_input("下溫度 (℃)", key="v_tb")
+                with c_v3: v_tt = st.text_input("上溫度 (℃)", key=f"v_tt_{fk}")
+                with c_v4: v_tb = st.text_input("下溫度 (℃)", key=f"v_tb_{fk}")
                 
                 st.write("---")
-                v_tdrop_t = st.text_input("上硅膠墊垂落時間 (sec)", key="v_tdrop_t")
+                v_tdrop_t = st.text_input("上硅膠墊垂落時間 (sec)", key=f"v_tdrop_t_{fk}")
                 
                 c_v5, c_v6 = st.columns(2)
-                with c_v5: v_pt = st.text_input("上氣囊加壓壓力 (kgf/cm²)", key="v_pt")
-                with c_v6: v_tpt = st.text_input("上氣囊加壓時間 (sec)", key="v_tpt")
+                with c_v5: v_pt = st.text_input("上氣囊加壓壓力 (kgf/cm²)", key=f"v_pt_{fk}")
+                with c_v6: v_tpt = st.text_input("上氣囊加壓時間 (sec)", key=f"v_tpt_{fk}")
                 
                 st.write("---")
-                v_dly_b = st.text_input("下加壓延遲時間 (sec)", key="v_dly_b")
-                v_tdrop_b = st.text_input("下硅膠墊垂落時間 (sec)", key="v_tdrop_b")
+                v_dly_b = st.text_input("下加壓延遲時間 (sec)", key=f"v_dly_b_{fk}")
+                v_tdrop_b = st.text_input("下硅膠墊垂落時間 (sec)", key=f"v_tdrop_b_{fk}")
                 
                 c_v7, c_v8 = st.columns(2)
-                with c_v7: v_pb = st.text_input("下加壓壓力 (kgf/cm²)", key="v_pb")
-                with c_v8: v_tpb = st.text_input("下加壓時間 (sec)", key="v_tpb")
+                with c_v7: v_pb = st.text_input("下加壓壓力 (kgf/cm²)", key=f"v_pb_{fk}")
+                with c_v8: v_tpb = st.text_input("下加壓時間 (sec)", key=f"v_tpb_{fk}")
                 
             st.write("---")
-            input_v_qty = st.text_input("壓合數量 (片/次)", key="v_qty")
-            input_v_remark = st.text_area("備註 (測試變動說明、具體異常)", key="v_rmk")
-            input_v_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", key="v_fb")
-            upload_v_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key="v_photo")
+            input_v_qty = st.text_input("壓合數量 (片/次)", key=f"v_qty_{fk}")
+            input_v_remark = st.text_area("備註 (測試變動說明、具體異常)", key=f"v_rmk_{fk}")
+            input_v_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", key=f"v_fb_{fk}")
+            upload_v_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"v_photo_{fk}")
             
-            if st.form_submit_button("送出 V-160 紀錄"):
+            # 📌 V-160 的按鈕名稱統一為「送出實驗紀錄」
+            if st.form_submit_button("送出實驗紀錄", key=f"btn_v_{fk}"):
                 if not all([input_v_operator, input_v_customer]):
                     st.error("⚠️ 請至少填寫操作人與客戶名稱！")
                 else:
