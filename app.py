@@ -58,24 +58,23 @@ def render_lam_inputs(stage_name, key_prefix):
             "壓合時間 (sec)": t_p
         }
 
-# 📌 全新：3rd 壓模機 (伺服控制) 專屬輸入 UI
+# 📌 更新：3rd 壓模機 依據使用者思維重新排版 + 補上單位
 def render_lam3_inputs(stage_name, key_prefix):
     with st.expander(f"📍 {stage_name} 參數 (伺服控制)"):
         mode = st.selectbox("控制模式", ["", "Position", "Press", "Fit"], key=f"{key_prefix}_mode")
         
         st.write("---")
-        # 共同參數
+        
+        # 1. 基礎設定區 (溫度 / 時間 / 產品厚度)
         c1, c2 = st.columns(2)
         with c1:
             t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t")
-            thick = st.text_input("目前產品厚度", key=f"{key_prefix}_thk")
-            spd = st.text_input("壓合推速度", key=f"{key_prefix}_spd")
+            thick = st.text_input("目前產品厚度 (mm)", key=f"{key_prefix}_thk")
         with c2:
             t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv")
-            t_p = st.text_input("壓合時間 (sec)", key=f"{key_prefix}_tp")
             
+        # 2. 模式專屬參數區
         st.markdown("###### 🎯 模式專屬參數 (請對應上方模式填寫，未填將自動隱藏)")
-        # 專屬參數並列
         c3, c4, c5 = st.columns(3)
         with c3:
             pos_v = st.text_input("【Position】厚度補償", key=f"{key_prefix}_pos")
@@ -84,16 +83,24 @@ def render_lam3_inputs(stage_name, key_prefix):
         with c5:
             fit_v = st.text_input("【Fit】推進量", key=f"{key_prefix}_fit")
             
+        # 3. 動作設定區 (速度 / 壓合時間)
+        st.write("---")
+        c6, c7 = st.columns(2)
+        with c6:
+            spd = st.text_input("壓合推速度 (mm/sec)", key=f"{key_prefix}_spd")
+        with c7:
+            t_p = st.text_input("壓合時間 (sec)", key=f"{key_prefix}_tp")
+            
         return {
             "控制模式": mode,
             "溫度 (℃)": t, 
             "抽真空時間 (sec)": t_v,
-            "目前產品厚度": thick, 
-            "壓合時間 (sec)": t_p,
-            "壓合推速度": spd,
+            "目前產品厚度 (mm)": thick, 
             "厚度補償 (Position)": pos_v,
             "加壓壓力 (Press)": press_v,
-            "推進量 (Fit)": fit_v
+            "推進量 (Fit)": fit_v,
+            "壓合推速度 (mm/sec)": spd,
+            "壓合時間 (sec)": t_p
         }
 # ---------------------------------------------
 
@@ -372,8 +379,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                     
             lam1_dict = render_lam_inputs("1st 壓模機", "l1")
             lam2_dict = render_lam_inputs("2nd 壓模機", "l2")
-            
-            # 📌 呼叫專屬打造的 3rd 伺服控制壓模機介面
             lam3_dict = render_lam3_inputs("3rd 壓模機", "l3")
                 
             st.write("---")
