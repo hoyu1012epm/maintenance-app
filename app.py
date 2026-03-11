@@ -400,9 +400,10 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                         log_id = datetime.now(tz_tw).strftime("DEMO-%y%m%d-%H%M")
                         photo_url = upload_image(upload_d_file, f"{log_id}.jpg") if upload_d_file else ""
                         
+                        # 📌 精簡後的 14 個欄位寫入陣列
                         new_demo_row = [
-                            log_id, input_d_date.strftime("%Y-%m-%d"), input_d_operator, "", 
-                            input_d_customer, input_d_equip, "", input_d_substrate, 
+                            log_id, input_d_date.strftime("%Y-%m-%d"), input_d_operator, 
+                            input_d_customer, input_d_equip, input_d_substrate, 
                             input_d_pre, input_d_1st, input_d_2nd, input_d_3rd, 
                             input_d_qty, input_d_remark, input_d_feedback, photo_url
                         ]
