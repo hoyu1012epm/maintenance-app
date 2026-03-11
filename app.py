@@ -40,20 +40,16 @@ def format_params_html(raw_text):
         valid_lines.append(line)
     return "<br>".join(valid_lines) if valid_lines else ""
 
-# 📌 更新：依據你的需求重新排版壓模機輸入框，並刪除真空到達
 def render_lam_inputs(stage_name, key_prefix):
     with st.expander(f"📍 {stage_name} 參數"):
-        # 第一排：溫度自己一整排
         t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t")
         
-        # 第二排：真空度與時間
         c1, c2 = st.columns(2)
         with c1:
             v_set = st.text_input("真空度 (hPa)", key=f"{key_prefix}_vs")
         with c2:
             t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv")
             
-        # 第三排：壓力與時間
         c3, c4 = st.columns(2)
         with c3:
             p = st.text_input("壓合壓力 (kgf/cm²)", key=f"{key_prefix}_p")
@@ -260,7 +256,7 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
     df_d = load_data("demo")
 
     with tab_d1:
-        search_kw_demo = st.text_input("🔍 全域搜尋 (例如: 配方號碼, 膜材型號, 客戶)")
+        search_kw_demo = st.text_input("🔍 全域搜尋 (例如: 膜材型號, 客戶, 機台)")
         filtered_demo = df_d.copy()
 
         if not filtered_demo.empty:
@@ -295,7 +291,7 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
 
                 st.markdown(f"""
 <div class="glide-card">
-<div class="glide-title">🧪 配方: {row.get('Recipe_NO', '未命名')} | 機台: {row.get('Equipment', '')}</div>
+<div class="glide-title">🧪 測試機台: {row.get('Equipment', '未填寫')}</div>
 <div class="glide-tag">📅 {row.get('Date', '')}</div>
 <div class="glide-tag">🏢 {row.get('Customer', '')}</div>
 <div class="glide-tag">👤 操作: {row.get('Operator', '')}</div>
@@ -314,16 +310,13 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
         with st.form(f"demo_form_{st.session_state.form_key}"):
             st.subheader("🧪 填寫 DEMO 機測試紀錄")
             
-            c1, c2, c3 = st.columns(3)
+            c1, c2 = st.columns(2)
             with c1: input_d_date = st.date_input("測試日期", datetime.now(tz_tw).date())
             with c2: input_d_operator = st.text_input("操作人")
-            with c3: input_d_applicant = st.text_input("申請人")
             
             c4, c5 = st.columns(2)
             with c4: input_d_customer = st.text_input("客戶名稱")
             with c5: input_d_equip = st.text_input("設備類型 (如: CVP-1600SP)")
-            
-            input_d_recipe = st.text_input("配方 NO. (Recipe)")
             
             with st.expander("📍 基材資訊 (沒填寫的將自動隱藏)"):
                 c_s1, c_s2 = st.columns(2)
@@ -368,9 +361,10 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                         log_id = datetime.now(tz_tw).strftime("DEMO-%y%m%d-%H%M")
                         photo_url = upload_image(upload_d_file, f"{log_id}.jpg") if upload_d_file else ""
                         
+                        # 📌 關鍵更新：原本申請人與配方NO的位子用空白字串 "" 補上，維持雲端資料對齊
                         new_demo_row = [
-                            log_id, input_d_date.strftime("%Y-%m-%d"), input_d_operator, input_d_applicant, 
-                            input_d_customer, input_d_equip, input_d_recipe, input_d_substrate, 
+                            log_id, input_d_date.strftime("%Y-%m-%d"), input_d_operator, "", 
+                            input_d_customer, input_d_equip, "", input_d_substrate, 
                             input_d_pre, input_d_1st, input_d_2nd, input_d_3rd, 
                             input_d_qty, input_d_remark, input_d_feedback, photo_url
                         ]
