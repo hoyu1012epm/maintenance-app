@@ -250,7 +250,8 @@ if app_mode == "🔧 現場維修系統":
                     st.error("⚠️ 請確認所有必填欄位都已填寫！")
                 else:
                     with st.spinner("寫入中..."):
-                        log_id = datetime.now(tz_tw).strftime("REP-%y%m%d-%H%M%S")
+                        # 📌 這裡幫你把維修紀錄的單號拔掉秒數了，只保留到分鐘 (HHMM)
+                        log_id = datetime.now(tz_tw).strftime("REP-%y%m%d-%H%M")
                         photo_url = upload_image(upload_file, f"{log_id}.jpg") if upload_file else ""
                         sheet_maint.append_row([log_id, input_date.strftime("%Y-%m-%d"), input_engineer, input_customer, input_machine, input_component, input_issue, input_solution, photo_url])
                         st.cache_data.clear()
@@ -400,7 +401,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                         log_id = datetime.now(tz_tw).strftime("DEMO-%y%m%d-%H%M")
                         photo_url = upload_image(upload_d_file, f"{log_id}.jpg") if upload_d_file else ""
                         
-                        # 📌 精簡後的 14 個欄位寫入陣列
                         new_demo_row = [
                             log_id, input_d_date.strftime("%Y-%m-%d"), input_d_operator, 
                             input_d_customer, input_d_equip, input_d_substrate, 
