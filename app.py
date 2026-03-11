@@ -40,7 +40,7 @@ def format_params_html(raw_text):
         valid_lines.append(line)
     return "<br>".join(valid_lines) if valid_lines else ""
 
-# 📌 更新：刪除真空度，並將剩下的 4 個參數排成對稱的 2x2 矩陣
+# 📌 1st / 2nd 壓模機專屬輸入 UI
 def render_lam_inputs(stage_name, key_prefix):
     with st.expander(f"📍 {stage_name} 參數"):
         c1, c2 = st.columns(2)
@@ -56,6 +56,44 @@ def render_lam_inputs(stage_name, key_prefix):
             "抽真空時間 (sec)": t_v,
             "壓合壓力 (kgf/cm²)": p, 
             "壓合時間 (sec)": t_p
+        }
+
+# 📌 全新：3rd 壓模機 (伺服控制) 專屬輸入 UI
+def render_lam3_inputs(stage_name, key_prefix):
+    with st.expander(f"📍 {stage_name} 參數 (伺服控制)"):
+        mode = st.selectbox("控制模式", ["", "Position", "Press", "Fit"], key=f"{key_prefix}_mode")
+        
+        st.write("---")
+        # 共同參數
+        c1, c2 = st.columns(2)
+        with c1:
+            t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t")
+            thick = st.text_input("目前產品厚度", key=f"{key_prefix}_thk")
+            spd = st.text_input("壓合推速度", key=f"{key_prefix}_spd")
+        with c2:
+            t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv")
+            t_p = st.text_input("壓合時間 (sec)", key=f"{key_prefix}_tp")
+            
+        st.markdown("###### 🎯 模式專屬參數 (請對應上方模式填寫，未填將自動隱藏)")
+        # 專屬參數並列
+        c3, c4, c5 = st.columns(3)
+        with c3:
+            pos_v = st.text_input("【Position】厚度補償", key=f"{key_prefix}_pos")
+        with c4:
+            press_v = st.text_input("【Press】加壓壓力", key=f"{key_prefix}_prs")
+        with c5:
+            fit_v = st.text_input("【Fit】推進量", key=f"{key_prefix}_fit")
+            
+        return {
+            "控制模式": mode,
+            "溫度 (℃)": t, 
+            "抽真空時間 (sec)": t_v,
+            "目前產品厚度": thick, 
+            "壓合時間 (sec)": t_p,
+            "壓合推速度": spd,
+            "厚度補償 (Position)": pos_v,
+            "加壓壓力 (Press)": press_v,
+            "推進量 (Fit)": fit_v
         }
 # ---------------------------------------------
 
@@ -334,7 +372,9 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                     
             lam1_dict = render_lam_inputs("1st 壓模機", "l1")
             lam2_dict = render_lam_inputs("2nd 壓模機", "l2")
-            lam3_dict = render_lam_inputs("3rd 壓模機", "l3")
+            
+            # 📌 呼叫專屬打造的 3rd 伺服控制壓模機介面
+            lam3_dict = render_lam3_inputs("3rd 壓模機", "l3")
                 
             st.write("---")
             input_d_qty = st.text_input("壓合數量 (片/次)")
