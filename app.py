@@ -40,7 +40,7 @@ def format_params_html(raw_text):
         valid_lines.append(line)
     return "<br>".join(valid_lines) if valid_lines else ""
 
-# 📌 更新：1st / 2nd 壓模機 (逐列防走位排版)
+# 📌 1st / 2nd 壓模機專屬輸入 UI (名詞修正為 加壓)
 def render_lam_inputs(stage_name, key_prefix):
     with st.expander(f"📍 {stage_name} 參數"):
         # 第一排：溫度、抽真空時間
@@ -48,19 +48,19 @@ def render_lam_inputs(stage_name, key_prefix):
         with c1: t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t")
         with c2: t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv")
             
-        # 第二排：壓力、壓合時間
+        # 第二排：壓力、加壓時間
         c3, c4 = st.columns(2)
-        with c3: p = st.text_input("壓合壓力 (kgf/cm²)", key=f"{key_prefix}_p")
-        with c4: t_p = st.text_input("壓合時間 (sec)", key=f"{key_prefix}_tp")
+        with c3: p = st.text_input("加壓壓力 (kgf/cm²)", key=f"{key_prefix}_p")
+        with c4: t_p = st.text_input("加壓時間 (sec)", key=f"{key_prefix}_tp")
             
         return {
             "溫度 (℃)": t, 
             "抽真空時間 (sec)": t_v,
-            "壓合壓力 (kgf/cm²)": p, 
-            "壓合時間 (sec)": t_p
+            "加壓壓力 (kgf/cm²)": p, 
+            "加壓時間 (sec)": t_p
         }
 
-# 📌 更新：3rd 壓模機 (依據使用者思維 + 逐列防走位排版)
+# 📌 3rd 壓模機 (名詞修正為 加壓)
 def render_lam3_inputs(stage_name, key_prefix):
     with st.expander(f"📍 {stage_name} 參數 (伺服控制)"):
         mode = st.selectbox("控制模式", ["", "Position", "Press", "Fit"], key=f"{key_prefix}_mode")
@@ -72,7 +72,7 @@ def render_lam3_inputs(stage_name, key_prefix):
         with c1: t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t")
         with c2: t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv")
             
-        # 第 2 排：目前產品厚度 (單獨佔據左半邊，維持排版對齊)
+        # 第 2 排：目前產品厚度
         c3, c4 = st.columns(2)
         with c3: thick = st.text_input("目前產品厚度 (mm)", key=f"{key_prefix}_thk")
             
@@ -85,10 +85,10 @@ def render_lam3_inputs(stage_name, key_prefix):
             
         st.write("---")
         
-        # 3. 動作設定區 (第 3 排：速度 / 壓合時間)
+        # 3. 動作設定區 (第 3 排：加壓推速度 / 加壓時間)
         c8, c9 = st.columns(2)
-        with c8: spd = st.text_input("壓合推速度 (mm/sec)", key=f"{key_prefix}_spd")
-        with c9: t_p = st.text_input("壓合時間 (sec)", key=f"{key_prefix}_tp")
+        with c8: spd = st.text_input("加壓推速度 (mm/sec)", key=f"{key_prefix}_spd")
+        with c9: t_p = st.text_input("加壓時間 (sec)", key=f"{key_prefix}_tp")
             
         return {
             "控制模式": mode,
@@ -98,8 +98,8 @@ def render_lam3_inputs(stage_name, key_prefix):
             "厚度補償 (Position)": pos_v,
             "加壓壓力 (Press)": press_v,
             "推進量 (Fit)": fit_v,
-            "壓合推速度 (mm/sec)": spd,
-            "壓合時間 (sec)": t_p
+            "加壓推速度 (mm/sec)": spd,
+            "加壓時間 (sec)": t_p
         }
 # ---------------------------------------------
 
@@ -367,16 +367,14 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             st.write("---")
             st.markdown("##### ⚙️ 各站機台參數設定 (沒填寫的欄位將自動隱藏)")
             
-            # 📌 更新：預貼機 (逐列防走位排版)
             with st.expander("📍 預貼機參數"):
-                # 第一排
                 c_p1, c_p2 = st.columns(2)
-                with c_p1: pre_t = st.text_input("預貼溫度 (℃)", key="p_t")
-                with c_p2: pre_s = st.text_input("預貼速度 (m/min)", key="p_s")
-                # 第二排
-                c_p3, c_p4 = st.columns(2)
-                with c_p3: pre_p = st.text_input("預貼壓力 (MPa)", key="p_p")
-                with c_p4: pre_m = st.text_input("前後留邊量 (前mm / 後mm)", key="p_m")
+                with c_p1: 
+                    pre_t = st.text_input("預貼溫度 (℃)", key="p_t")
+                    pre_p = st.text_input("預貼壓力 (MPa)", key="p_p")
+                with c_p2:
+                    pre_s = st.text_input("預貼速度 (m/min)", key="p_s")
+                    pre_m = st.text_input("前後留邊量 (前mm / 後mm)", key="p_m")
                     
             lam1_dict = render_lam_inputs("1st 壓模機", "l1")
             lam2_dict = render_lam_inputs("2nd 壓模機", "l2")
