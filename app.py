@@ -414,7 +414,7 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             
             st.write("---")
             
-            # 📌 V-160 專屬參數區塊 (上下對稱防走位排版)
+            # 📌 V-160 專屬參數區塊 (完全依照工程師邏輯排序)
             with st.expander("📍 V-160 參數"):
                 
                 # 第 1 排：模式與真空
@@ -422,31 +422,33 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                 with c_v1: v_mode = st.selectbox("加壓模式", ["", "上", "下", "上下"], key="v_mode")
                 with c_v2: v_tv = st.text_input("下真空時間 (sec)", key="v_tv")
                 
-                st.write("---")
-                
                 # 第 2 排：溫度對稱
                 c_v3, c_v4 = st.columns(2)
                 with c_v3: v_tt = st.text_input("上溫度 (℃)", key="v_tt")
                 with c_v4: v_tb = st.text_input("下溫度 (℃)", key="v_tb")
                 
-                # 第 3 排：硅膠墊垂落時間對稱
+                st.write("---")
+                
+                # 第 3 排：上硅膠墊
+                v_tdrop_t = st.text_input("上硅膠墊垂落時間 (sec)", key="v_tdrop_t")
+                
+                # 第 4 排：上加壓
                 c_v5, c_v6 = st.columns(2)
-                with c_v5: v_tdrop_t = st.text_input("上硅膠墊垂落時間 (sec)", key="v_tdrop_t")
-                with c_v6: v_tdrop_b = st.text_input("下硅膠墊垂落時間 (sec)", key="v_tdrop_b")
+                with c_v5: v_pt = st.text_input("上氣囊加壓壓力 (kgf/cm²)", key="v_pt")
+                with c_v6: v_tpt = st.text_input("上氣囊加壓時間 (sec)", key="v_tpt")
                 
-                # 第 4 排：加壓壓力對稱
+                st.write("---")
+                
+                # 第 5 排：下延遲
+                v_dly_b = st.text_input("下加壓延遲時間 (sec)", key="v_dly_b")
+                
+                # 第 6 排：下硅膠墊
+                v_tdrop_b = st.text_input("下硅膠墊垂落時間 (sec)", key="v_tdrop_b")
+                
+                # 第 7 排：下加壓
                 c_v7, c_v8 = st.columns(2)
-                with c_v7: v_pt = st.text_input("上氣囊加壓壓力 (kgf/cm²)", key="v_pt")
-                with c_v8: v_pb = st.text_input("下加壓壓力 (kgf/cm²)", key="v_pb")
-                
-                # 第 5 排：加壓時間對稱
-                c_v9, c_v10 = st.columns(2)
-                with c_v9: v_tpt = st.text_input("上氣囊加壓時間 (sec)", key="v_tpt")
-                with c_v10: v_tpb = st.text_input("下加壓時間 (sec)", key="v_tpb")
-                
-                # 第 6 排：底部專屬延遲時間
-                c_v11, c_v12 = st.columns(2)
-                with c_v11: v_dly_b = st.text_input("下加壓延遲時間 (sec)", key="v_dly_b")
+                with c_v7: v_pb = st.text_input("下加壓壓力 (kgf/cm²)", key="v_pb")
+                with c_v8: v_tpb = st.text_input("下加壓時間 (sec)", key="v_tpb")
                 
             st.write("---")
             input_v_qty = st.text_input("壓合數量 (片/次)", key="v_qty")
@@ -461,15 +463,19 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                     with st.spinner("打包 V-160 參數並寫入雲端中..."):
                         input_v_substrate = pack_params({"板材類型": v_sub_t, "膜材": v_sub_f, "基板尺寸": v_sub_d})
                         
-                        # 📌 完整打包 V-160 參數 (順序也對齊上下邏輯)
+                        # 📌 完全對齊前台順序的打包邏輯
                         v160_dict = {
                             "加壓模式": v_mode,
                             "下真空時間 (sec)": v_tv,
-                            "上溫度 (℃)": v_tt, "下溫度 (℃)": v_tb,
-                            "上硅膠墊垂落時間 (sec)": v_tdrop_t, "下硅膠墊垂落時間 (sec)": v_tdrop_b,
-                            "上氣囊加壓壓力 (kgf/cm²)": v_pt, "下加壓壓力 (kgf/cm²)": v_pb,
-                            "上氣囊加壓時間 (sec)": v_tpt, "下加壓時間 (sec)": v_tpb,
-                            "下加壓延遲時間 (sec)": v_dly_b
+                            "上溫度 (℃)": v_tt,
+                            "下溫度 (℃)": v_tb,
+                            "上硅膠墊垂落時間 (sec)": v_tdrop_t,
+                            "上氣囊加壓壓力 (kgf/cm²)": v_pt,
+                            "上氣囊加壓時間 (sec)": v_tpt,
+                            "下加壓延遲時間 (sec)": v_dly_b,
+                            "下硅膠墊垂落時間 (sec)": v_tdrop_b,
+                            "下加壓壓力 (kgf/cm²)": v_pb,
+                            "下加壓時間 (sec)": v_tpb
                         }
                         input_v_params = pack_params(v160_dict)
 
