@@ -40,7 +40,7 @@ def format_params_html(raw_text):
         valid_lines.append(line)
     return "<br>".join(valid_lines) if valid_lines else ""
 
-# 📌 1st / 2nd 壓模機專屬輸入 UI (加入了動態 Key 確保成功後清空)
+# 📌 1st / 2nd 壓模機專屬輸入 UI
 def render_lam_inputs(stage_name, key_prefix, fk):
     with st.expander(f"📍 {stage_name} 參數"):
         c1, c2 = st.columns(2)
@@ -56,7 +56,7 @@ def render_lam_inputs(stage_name, key_prefix, fk):
             "加壓壓力 (kgf/cm²)": p, "加壓時間 (sec)": t_p
         }
 
-# 📌 3rd 壓模機 (伺服控制) 專屬輸入 UI (加入了動態 Key 確保成功後清空)
+# 📌 3rd 壓模機 (伺服控制) 專屬輸入 UI
 def render_lam3_inputs(stage_name, key_prefix, fk):
     with st.expander(f"📍 {stage_name} 參數 (伺服控制)"):
         mode = st.selectbox("控制模式", ["", "Position", "Press", "Fit"], key=f"{key_prefix}_mode_{fk}")
@@ -225,7 +225,6 @@ if app_mode == "🔧 現場維修系統":
             
             if st.form_submit_button("送出維修紀錄", key=f"btn_m_{fk}"):
                 if not all([input_engineer, input_customer, input_machine, input_component, input_issue, input_solution]):
-                    # 資料不齊全時亮紅燈，但 form_key 不增加，資料完美保留！
                     st.error("⚠️ 請確認所有必填欄位都已填寫！")
                 else:
                     with st.spinner("寫入中..."):
@@ -234,7 +233,6 @@ if app_mode == "🔧 現場維修系統":
                         sheet_maint.append_row([log_id, input_date.strftime("%Y-%m-%d"), input_engineer, input_customer, input_machine, input_component, input_issue, input_solution, photo_url])
                         st.cache_data.clear()
                         st.session_state.success_msg = f"✅ 成功寫入資料庫！單號：{log_id}"
-                        # 成功送出後，增加 form_key，觸發重新載入，表單自動清空！
                         st.session_state.form_key += 1
                         st.rerun()
 
@@ -276,7 +274,7 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
     df_d = load_data("demo")
 
     with tab_d1:
-        search_kw_demo = st.text_input("🔍 全域搜尋 (例如: 膜材型號, 客戶, 機台)")
+        search_kw_demo = st.text_input("🔍 全域搜尋 (例如: 膜材型號, 客戶, 評估結果)")
         filtered_demo = df_d.copy()
 
         if not filtered_demo.empty:
@@ -313,6 +311,10 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                     
                 sub_block = f"<div class='glide-subtitle'><b>基材/膜材：</b><br>{html_sub}</div>" if html_sub else ""
 
+                # 📌 在查詢卡片中，加入超級醒目的「自評結果」標籤
+                eval_result = str(row.get('Self_Eval', '未評估'))
+                if not eval_result or eval_result == "nan": eval_result = "未評估"
+
                 st.markdown(f"""
 <div class="glide-card">
 <div class="glide-title">🧪 測試機台: {equip_name if equip_name else '未填寫'}</div>
@@ -320,6 +322,7 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
 <div class="glide-tag">🏢 {row.get('Customer', '')}</div>
 <div class="glide-tag">👤 操作: {row.get('Operator', '')}</div>
 <div class="glide-tag">📦 數量: {row.get('Qty', '')}</div>
+<div class="glide-tag" style="background-color: #E8F5E9; color: #2E7D32;">📊 自評: {eval_result}</div>
 {sub_block}
 {params_block}
 <div class="glide-subtitle"><b>📝 備註與異常：</b><br>{str(row.get('Remarks', '無')).replace('\n', '<br>')}</div>
@@ -363,7 +366,12 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             lam3_dict = render_lam3_inputs("3rd 壓模機", "l3", fk)
                 
             st.write("---")
-            input_d_qty = st.text_input("壓合數量 (片/次)", key=f"d_qty_{fk}")
+            
+            # 📌 加入「內部自評結果」選項
+            c_q1, c_q2 = st.columns(2)
+            with c_q1: input_d_qty = st.text_input("壓合數量 (片/次)", key=f"d_qty_{fk}")
+            with c_q2: input_d_eval = st.selectbox("內部自評結果", ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"], key=f"d_eval_{fk}")
+            
             input_d_remark = st.text_area("備註 (測試變動說明、具體異常)", key=f"d_rmk_{fk}")
             input_d_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", key=f"d_fb_{fk}")
             upload_d_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"d_photo_{fk}")
@@ -382,11 +390,12 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                         log_id = datetime.now(tz_tw).strftime("DEMO-%y%m%d-%H%M")
                         photo_url = upload_image(upload_d_file, f"{log_id}.jpg") if upload_d_file else ""
                         
+                        # 📌 將自評結果 input_d_eval 寫入陣列 (對應第 12 欄)
                         new_demo_row = [
                             log_id, input_d_date.strftime("%Y-%m-%d"), input_d_operator, 
                             input_d_customer, input_d_equip, input_d_substrate, 
                             input_d_pre, input_d_1st, input_d_2nd, input_d_3rd, 
-                            input_d_qty, input_d_remark, input_d_feedback, photo_url
+                            input_d_qty, input_d_eval, input_d_remark, input_d_feedback, photo_url
                         ]
                         
                         sheet_demo.append_row(new_demo_row)
@@ -441,12 +450,16 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                 with c_v8: v_tpb = st.text_input("下加壓時間 (sec)", key=f"v_tpb_{fk}")
                 
             st.write("---")
-            input_v_qty = st.text_input("壓合數量 (片/次)", key=f"v_qty_{fk}")
+            
+            # 📌 同樣為 V-160 加入「內部自評結果」選項
+            c_vq1, c_vq2 = st.columns(2)
+            with c_vq1: input_v_qty = st.text_input("壓合數量 (片/次)", key=f"v_qty_{fk}")
+            with c_vq2: input_v_eval = st.selectbox("內部自評結果", ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"], key=f"v_eval_{fk}")
+            
             input_v_remark = st.text_area("備註 (測試變動說明、具體異常)", key=f"v_rmk_{fk}")
             input_v_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", key=f"v_fb_{fk}")
             upload_v_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"v_photo_{fk}")
             
-            # 📌 V-160 的按鈕名稱統一為「送出實驗紀錄」
             if st.form_submit_button("送出實驗紀錄", key=f"btn_v_{fk}"):
                 if not all([input_v_operator, input_v_customer]):
                     st.error("⚠️ 請至少填寫操作人與客戶名稱！")
@@ -455,28 +468,22 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                         input_v_substrate = pack_params({"板材類型": v_sub_t, "膜材": v_sub_f, "基板尺寸": v_sub_d})
                         
                         v160_dict = {
-                            "加壓模式": v_mode,
-                            "下真空時間 (sec)": v_tv,
-                            "上溫度 (℃)": v_tt,
-                            "下溫度 (℃)": v_tb,
-                            "上硅膠墊垂落時間 (sec)": v_tdrop_t,
-                            "上氣囊加壓壓力 (kgf/cm²)": v_pt,
-                            "上氣囊加壓時間 (sec)": v_tpt,
-                            "下加壓延遲時間 (sec)": v_dly_b,
-                            "下硅膠墊垂落時間 (sec)": v_tdrop_b,
-                            "下加壓壓力 (kgf/cm²)": v_pb,
-                            "下加壓時間 (sec)": v_tpb
+                            "加壓模式": v_mode, "下真空時間 (sec)": v_tv, "上溫度 (℃)": v_tt, "下溫度 (℃)": v_tb,
+                            "上硅膠墊垂落時間 (sec)": v_tdrop_t, "上氣囊加壓壓力 (kgf/cm²)": v_pt, "上氣囊加壓時間 (sec)": v_tpt,
+                            "下加壓延遲時間 (sec)": v_dly_b, "下硅膠墊垂落時間 (sec)": v_tdrop_b,
+                            "下加壓壓力 (kgf/cm²)": v_pb, "下加壓時間 (sec)": v_tpb
                         }
                         input_v_params = pack_params(v160_dict)
 
                         log_id = datetime.now(tz_tw).strftime("DEMO-%y%m%d-%H%M")
                         photo_url = upload_image(upload_v_file, f"{log_id}.jpg") if upload_v_file else ""
                         
+                        # 📌 寫入包含 input_v_eval 的陣列
                         new_v160_row = [
                             log_id, input_v_date.strftime("%Y-%m-%d"), input_v_operator, 
                             input_v_customer, input_v_equip, input_v_substrate, 
                             "無", input_v_params, "無", "無", 
-                            input_v_qty, input_v_remark, input_v_feedback, photo_url
+                            input_v_qty, input_v_eval, input_v_remark, input_v_feedback, photo_url
                         ]
                         
                         sheet_demo.append_row(new_v160_row)
