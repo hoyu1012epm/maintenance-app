@@ -24,7 +24,7 @@ GAS_URL = "https://script.google.com/macros/s/AKfycbxEVcNlZjjFEmkQmH8Ft-P8mVTSQl
 def pack_params(param_dict):
     lines = []
     for k, v in param_dict.items():
-        if v and str(v).strip():
+        if v and str(v).strip() and str(v).strip() != "nan":
             lines.append(f"{k}：{v.strip()}")
     return "\n".join(lines) if lines else "無"
 
@@ -274,14 +274,38 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
     df_d = load_data("demo")
 
     with tab_d1:
-        search_kw_demo = st.text_input("🔍 全域搜尋 (例如: 膜材型號, 客戶, 評估結果)")
+        # 📌 全新進階篩選區塊：結合關鍵字與分類選單
+        c_search, c_filter1, c_filter2 = st.columns([2, 1, 1])
+        with c_search:
+            search_kw_demo = st.text_input("🔍 全域搜尋 (關鍵字)")
+            
+        sub_types = ["全部"]
+        film_mats = ["全部"]
+        if not df_d.empty:
+            if 'Substrate_Type' in df_d.columns:
+                sub_types += sorted([str(x) for x in df_d['Substrate_Type'].unique() if str(x).strip() and str(x) != 'nan'])
+            if 'Film_Material' in df_d.columns:
+                film_mats += sorted([str(x) for x in df_d['Film_Material'].unique() if str(x).strip() and str(x) != 'nan'])
+        
+        with c_filter1:
+            filter_sub = st.selectbox("🗂️ 依板材篩選", sub_types)
+        with c_filter2:
+            filter_film = st.selectbox("🗂️ 依膜材篩選", film_mats)
+
         filtered_demo = df_d.copy()
 
         if not filtered_demo.empty:
+            # 執行三個維度的綜合篩選
             if search_kw_demo:
                 mask = pd.Series(False, index=filtered_demo.index)
                 for col in filtered_demo.columns: mask = mask | filtered_demo[col].astype(str).str.contains(search_kw_demo, case=False, na=False)
                 filtered_demo = filtered_demo[mask]
+                
+            if filter_sub != "全部":
+                filtered_demo = filtered_demo[filtered_demo['Substrate_Type'].astype(str) == filter_sub]
+                
+            if filter_film != "全部":
+                filtered_demo = filtered_demo[filtered_demo['Film_Material'].astype(str) == filter_film]
             
             st.caption(f"🔍 找到 {len(filtered_demo)} 筆實驗紀錄")
             
@@ -289,7 +313,16 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                 photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
                 
                 equip_name = str(row.get('Equipment', ''))
-                html_sub = format_params_html(row.get('Substrate_Info', ''))
+                
+                # 📌 將拆解後的 4 個欄位重新組裝顯示
+                s_t = str(row.get('Substrate_Type', '')).strip()
+                s_s = str(row.get('Substrate_Size', '')).strip()
+                f_m = str(row.get('Film_Material', '')).strip()
+                f_mod = str(row.get('Film_Model', '')).strip()
+                
+                sub_dict = {"板材類型": s_t, "基板尺寸": s_s, "膜材種類": f_m, "膜材型號": f_mod}
+                html_sub = format_params_html(pack_params(sub_dict))
+                
                 html_pre = format_params_html(row.get('Pre_Lam', ''))
                 html_l1 = format_params_html(row.get('Lam_1st', ''))
                 html_l2 = format_params_html(row.get('Lam_2nd', ''))
@@ -311,7 +344,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                     
                 sub_block = f"<div class='glide-subtitle'><b>基材/膜材：</b><br>{html_sub}</div>" if html_sub else ""
 
-                # 📌 在查詢卡片中，加入超級醒目的「自評結果」標籤
                 eval_result = str(row.get('Self_Eval', '未評估'))
                 if not eval_result or eval_result == "nan": eval_result = "未評估"
 
@@ -344,11 +376,19 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             with c4: input_d_operator = st.text_input("操作人", key=f"d_oper_{fk}")
             with c5: input_d_equip = st.text_input("設備類型 (如: CVP-1600SP)", key=f"d_equip_{fk}")
             
-            with st.expander("📍 基材資訊 (沒填寫的將自動隱藏)"):
+            # 📌 全新：防呆下拉式基材與膜材選單
+            with st.expander("📍 基材與膜材資訊 (下拉選單防呆)"):
                 c_s1, c_s2 = st.columns(2)
-                with c_s1: sub_t = st.text_input("板材類型", key=f"s_t_{fk}")
-                with c_s2: sub_f = st.text_input("膜材 (供應商/型號/厚度)", key=f"s_f_{fk}")
-                sub_d = st.text_input("基板尺寸 (大小/厚度)", key=f"s_d_{fk}")
+                with c_s1: 
+                    input_d_sub_t = st.selectbox("板材類型", ["", "PCB", "Wafer", "Glass", "其他"], key=f"s_t_{fk}")
+                    input_d_sub_t_other = st.text_input("自填板材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"s_to_{fk}")
+                with c_s2: 
+                    input_d_film_m = st.selectbox("膜材種類", ["", "ABF", "DAF", "NCF", "PI", "其他"], key=f"f_m_{fk}")
+                    input_d_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"f_mo_{fk}")
+                
+                c_s3, c_s4 = st.columns(2)
+                with c_s3: input_d_sub_size = st.text_input("基板尺寸與厚度", key=f"s_d_{fk}")
+                with c_s4: input_d_film_model = st.text_input("膜材型號 (如: Ajinomoto GX92)", key=f"f_mod_{fk}")
             
             st.write("---")
             st.markdown("##### ⚙️ 各站機台參數設定 (沒填寫的欄位將自動隱藏)")
@@ -366,8 +406,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             lam3_dict = render_lam3_inputs("3rd 壓模機", "l3", fk)
                 
             st.write("---")
-            
-            # 📌 加入「內部自評結果」選項
             c_q1, c_q2 = st.columns(2)
             with c_q1: input_d_qty = st.text_input("壓合數量 (片/次)", key=f"d_qty_{fk}")
             with c_q2: input_d_eval = st.selectbox("內部自評結果", ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"], key=f"d_eval_{fk}")
@@ -381,7 +419,10 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                     st.error("⚠️ 請至少填寫操作人、客戶名稱與設備類型！")
                 else:
                     with st.spinner("打包參數並寫入雲端中..."):
-                        input_d_substrate = pack_params({"板材類型": sub_t, "膜材": sub_f, "基板尺寸": sub_d})
+                        # 處理自填選項邏輯
+                        final_d_sub_t = input_d_sub_t_other if input_d_sub_t == "其他" else input_d_sub_t
+                        final_d_film_m = input_d_film_m_other if input_d_film_m == "其他" else input_d_film_m
+                        
                         input_d_pre = pack_params({"預貼溫度 (℃)": pre_t, "預貼壓力 (MPa)": pre_p, "預貼速度 (m/min)": pre_s, "前後留邊量": pre_m})
                         input_d_1st = pack_params(lam1_dict)
                         input_d_2nd = pack_params(lam2_dict)
@@ -390,10 +431,11 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                         log_id = datetime.now(tz_tw).strftime("DEMO-%y%m%d-%H%M")
                         photo_url = upload_image(upload_d_file, f"{log_id}.jpg") if upload_d_file else ""
                         
-                        # 📌 將自評結果 input_d_eval 寫入陣列 (對應第 12 欄)
+                        # 📌 精準寫入 18 個欄位陣列 (完美對應你剛改好的表格)
                         new_demo_row = [
                             log_id, input_d_date.strftime("%Y-%m-%d"), input_d_operator, 
-                            input_d_customer, input_d_equip, input_d_substrate, 
+                            input_d_customer, input_d_equip, 
+                            final_d_sub_t, input_d_sub_size, final_d_film_m, input_d_film_model, 
                             input_d_pre, input_d_1st, input_d_2nd, input_d_3rd, 
                             input_d_qty, input_d_eval, input_d_remark, input_d_feedback, photo_url
                         ]
@@ -417,11 +459,19 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             with c4: input_v_operator = st.text_input("操作人", key=f"v_oper_{fk}")
             with c5: input_v_equip = st.text_input("設備類型", value="V-160", disabled=True, key=f"v_equip_{fk}") 
             
-            with st.expander("📍 基材資訊 (沒填寫的將自動隱藏)"):
+            # 📌 全新：V-160 相同的防呆下拉式選單
+            with st.expander("📍 基材與膜材資訊 (下拉選單防呆)"):
                 c_vs1, c_vs2 = st.columns(2)
-                with c_vs1: v_sub_t = st.text_input("板材類型", key=f"v_s_t_{fk}")
-                with c_vs2: v_sub_f = st.text_input("膜材 (供應商/型號/厚度)", key=f"v_s_f_{fk}")
-                v_sub_d = st.text_input("基板尺寸 (大小/厚度)", key=f"v_s_d_{fk}")
+                with c_vs1: 
+                    input_v_sub_t = st.selectbox("板材類型", ["", "PCB", "Wafer", "Glass", "其他"], key=f"v_s_t_{fk}")
+                    input_v_sub_t_other = st.text_input("自填板材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"v_s_to_{fk}")
+                with c_vs2: 
+                    input_v_film_m = st.selectbox("膜材種類", ["", "ABF", "DAF", "NCF", "PI", "其他"], key=f"v_f_m_{fk}")
+                    input_v_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"v_f_mo_{fk}")
+                
+                c_vs3, c_vs4 = st.columns(2)
+                with c_vs3: input_v_sub_size = st.text_input("基板尺寸與厚度", key=f"v_s_d_{fk}")
+                with c_vs4: input_v_film_model = st.text_input("膜材型號 (如: Ajinomoto GX92)", key=f"v_f_mod_{fk}")
             
             st.write("---")
             
@@ -451,7 +501,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                 
             st.write("---")
             
-            # 📌 同樣為 V-160 加入「內部自評結果」選項
             c_vq1, c_vq2 = st.columns(2)
             with c_vq1: input_v_qty = st.text_input("壓合數量 (片/次)", key=f"v_qty_{fk}")
             with c_vq2: input_v_eval = st.selectbox("內部自評結果", ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"], key=f"v_eval_{fk}")
@@ -465,7 +514,8 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                     st.error("⚠️ 請至少填寫操作人與客戶名稱！")
                 else:
                     with st.spinner("打包 V-160 參數並寫入雲端中..."):
-                        input_v_substrate = pack_params({"板材類型": v_sub_t, "膜材": v_sub_f, "基板尺寸": v_sub_d})
+                        final_v_sub_t = input_v_sub_t_other if input_v_sub_t == "其他" else input_v_sub_t
+                        final_v_film_m = input_v_film_m_other if input_v_film_m == "其他" else input_v_film_m
                         
                         v160_dict = {
                             "加壓模式": v_mode, "下真空時間 (sec)": v_tv, "上溫度 (℃)": v_tt, "下溫度 (℃)": v_tb,
@@ -478,10 +528,11 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                         log_id = datetime.now(tz_tw).strftime("DEMO-%y%m%d-%H%M")
                         photo_url = upload_image(upload_v_file, f"{log_id}.jpg") if upload_v_file else ""
                         
-                        # 📌 寫入包含 input_v_eval 的陣列
+                        # 📌 寫入包含獨立分類的 18 個欄位陣列
                         new_v160_row = [
                             log_id, input_v_date.strftime("%Y-%m-%d"), input_v_operator, 
-                            input_v_customer, input_v_equip, input_v_substrate, 
+                            input_v_customer, input_v_equip, 
+                            final_v_sub_t, input_v_sub_size, final_v_film_m, input_v_film_model, 
                             "無", input_v_params, "無", "無", 
                             input_v_qty, input_v_eval, input_v_remark, input_v_feedback, photo_url
                         ]
