@@ -274,7 +274,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
     df_d = load_data("demo")
 
     with tab_d1:
-        # 📌 全新進階篩選區塊：結合關鍵字與分類選單
         c_search, c_filter1, c_filter2 = st.columns([2, 1, 1])
         with c_search:
             search_kw_demo = st.text_input("🔍 全域搜尋 (關鍵字)")
@@ -295,7 +294,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
         filtered_demo = df_d.copy()
 
         if not filtered_demo.empty:
-            # 執行三個維度的綜合篩選
             if search_kw_demo:
                 mask = pd.Series(False, index=filtered_demo.index)
                 for col in filtered_demo.columns: mask = mask | filtered_demo[col].astype(str).str.contains(search_kw_demo, case=False, na=False)
@@ -314,7 +312,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                 
                 equip_name = str(row.get('Equipment', ''))
                 
-                # 📌 將拆解後的 4 個欄位重新組裝顯示
                 s_t = str(row.get('Substrate_Type', '')).strip()
                 s_s = str(row.get('Substrate_Size', '')).strip()
                 f_m = str(row.get('Film_Material', '')).strip()
@@ -376,19 +373,21 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             with c4: input_d_operator = st.text_input("操作人", key=f"d_oper_{fk}")
             with c5: input_d_equip = st.text_input("設備類型 (如: CVP-1600SP)", key=f"d_equip_{fk}")
             
-            # 📌 全新：防呆下拉式基材與膜材選單
+            # 📌 關鍵更新：將欄位改成「左半邊」與「右半邊」的結構群組
             with st.expander("📍 基材與膜材資訊 (下拉選單防呆)"):
                 c_s1, c_s2 = st.columns(2)
+                
+                # 左半部：全部放「板材」相關
                 with c_s1: 
                     input_d_sub_t = st.selectbox("板材類型", ["", "PCB", "Wafer", "Glass", "其他"], key=f"s_t_{fk}")
                     input_d_sub_t_other = st.text_input("自填板材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"s_to_{fk}")
+                    input_d_sub_size = st.text_input("基板尺寸與厚度", key=f"s_d_{fk}")
+                
+                # 右半部：全部放「膜材」相關
                 with c_s2: 
                     input_d_film_m = st.selectbox("膜材種類", ["", "ABF", "DAF", "NCF", "PI", "其他"], key=f"f_m_{fk}")
                     input_d_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"f_mo_{fk}")
-                
-                c_s3, c_s4 = st.columns(2)
-                with c_s3: input_d_sub_size = st.text_input("基板尺寸與厚度", key=f"s_d_{fk}")
-                with c_s4: input_d_film_model = st.text_input("膜材型號 (如: Ajinomoto GX92)", key=f"f_mod_{fk}")
+                    input_d_film_model = st.text_input("膜材型號 (如: Ajinomoto GX92)", key=f"f_mod_{fk}")
             
             st.write("---")
             st.markdown("##### ⚙️ 各站機台參數設定 (沒填寫的欄位將自動隱藏)")
@@ -419,7 +418,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                     st.error("⚠️ 請至少填寫操作人、客戶名稱與設備類型！")
                 else:
                     with st.spinner("打包參數並寫入雲端中..."):
-                        # 處理自填選項邏輯
                         final_d_sub_t = input_d_sub_t_other if input_d_sub_t == "其他" else input_d_sub_t
                         final_d_film_m = input_d_film_m_other if input_d_film_m == "其他" else input_d_film_m
                         
@@ -431,7 +429,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                         log_id = datetime.now(tz_tw).strftime("DEMO-%y%m%d-%H%M")
                         photo_url = upload_image(upload_d_file, f"{log_id}.jpg") if upload_d_file else ""
                         
-                        # 📌 精準寫入 18 個欄位陣列 (完美對應你剛改好的表格)
                         new_demo_row = [
                             log_id, input_d_date.strftime("%Y-%m-%d"), input_d_operator, 
                             input_d_customer, input_d_equip, 
@@ -459,19 +456,21 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             with c4: input_v_operator = st.text_input("操作人", key=f"v_oper_{fk}")
             with c5: input_v_equip = st.text_input("設備類型", value="V-160", disabled=True, key=f"v_equip_{fk}") 
             
-            # 📌 全新：V-160 相同的防呆下拉式選單
+            # 📌 關鍵更新：V-160 同步套用「直向群組排版法」
             with st.expander("📍 基材與膜材資訊 (下拉選單防呆)"):
                 c_vs1, c_vs2 = st.columns(2)
+                
+                # 左半部：板材類
                 with c_vs1: 
                     input_v_sub_t = st.selectbox("板材類型", ["", "PCB", "Wafer", "Glass", "其他"], key=f"v_s_t_{fk}")
                     input_v_sub_t_other = st.text_input("自填板材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"v_s_to_{fk}")
+                    input_v_sub_size = st.text_input("基板尺寸與厚度", key=f"v_s_d_{fk}")
+                
+                # 右半部：膜材類
                 with c_vs2: 
                     input_v_film_m = st.selectbox("膜材種類", ["", "ABF", "DAF", "NCF", "PI", "其他"], key=f"v_f_m_{fk}")
                     input_v_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"v_f_mo_{fk}")
-                
-                c_vs3, c_vs4 = st.columns(2)
-                with c_vs3: input_v_sub_size = st.text_input("基板尺寸與厚度", key=f"v_s_d_{fk}")
-                with c_vs4: input_v_film_model = st.text_input("膜材型號 (如: Ajinomoto GX92)", key=f"v_f_mod_{fk}")
+                    input_v_film_model = st.text_input("膜材型號 (如: Ajinomoto GX92)", key=f"v_f_mod_{fk}")
             
             st.write("---")
             
@@ -528,7 +527,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                         log_id = datetime.now(tz_tw).strftime("DEMO-%y%m%d-%H%M")
                         photo_url = upload_image(upload_v_file, f"{log_id}.jpg") if upload_v_file else ""
                         
-                        # 📌 寫入包含獨立分類的 18 個欄位陣列
                         new_v160_row = [
                             log_id, input_v_date.strftime("%Y-%m-%d"), input_v_operator, 
                             input_v_customer, input_v_equip, 
