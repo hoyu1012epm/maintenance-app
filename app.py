@@ -373,17 +373,15 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             with c4: input_d_operator = st.text_input("操作人", key=f"d_oper_{fk}")
             with c5: input_d_equip = st.text_input("設備類型 (如: CVP-1600SP)", key=f"d_equip_{fk}")
             
-            # 📌 關鍵更新：將欄位改成「左半邊」與「右半邊」的結構群組
-            with st.expander("📍 基材與膜材資訊 (下拉選單防呆)"):
+            # 📌 更新標題，移除開發者備註
+            with st.expander("📍 基材與膜材資訊"):
                 c_s1, c_s2 = st.columns(2)
                 
-                # 左半部：全部放「板材」相關
                 with c_s1: 
                     input_d_sub_t = st.selectbox("板材類型", ["", "PCB", "Wafer", "Glass", "其他"], key=f"s_t_{fk}")
                     input_d_sub_t_other = st.text_input("自填板材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"s_to_{fk}")
                     input_d_sub_size = st.text_input("基板尺寸與厚度", key=f"s_d_{fk}")
                 
-                # 右半部：全部放「膜材」相關
                 with c_s2: 
                     input_d_film_m = st.selectbox("膜材種類", ["", "ABF", "DAF", "NCF", "PI", "其他"], key=f"f_m_{fk}")
                     input_d_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"f_mo_{fk}")
@@ -456,17 +454,15 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             with c4: input_v_operator = st.text_input("操作人", key=f"v_oper_{fk}")
             with c5: input_v_equip = st.text_input("設備類型", value="V-160", disabled=True, key=f"v_equip_{fk}") 
             
-            # 📌 關鍵更新：V-160 同步套用「直向群組排版法」
-            with st.expander("📍 基材與膜材資訊 (下拉選單防呆)"):
+            # 📌 更新標題，移除開發者備註
+            with st.expander("📍 基材與膜材資訊"):
                 c_vs1, c_vs2 = st.columns(2)
                 
-                # 左半部：板材類
                 with c_vs1: 
                     input_v_sub_t = st.selectbox("板材類型", ["", "PCB", "Wafer", "Glass", "其他"], key=f"v_s_t_{fk}")
                     input_v_sub_t_other = st.text_input("自填板材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"v_s_to_{fk}")
                     input_v_sub_size = st.text_input("基板尺寸與厚度", key=f"v_s_d_{fk}")
                 
-                # 右半部：膜材類
                 with c_vs2: 
                     input_v_film_m = st.selectbox("膜材種類", ["", "ABF", "DAF", "NCF", "PI", "其他"], key=f"v_f_m_{fk}")
                     input_v_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"v_f_mo_{fk}")
