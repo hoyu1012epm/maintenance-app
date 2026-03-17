@@ -114,30 +114,32 @@ def load_data(mode):
         df = df.iloc[::-1].reset_index(drop=True)
     return df
 
-# --- 側邊欄：雙系統模式切換 ---
+# --- 側邊欄：雙系統模式切換 (📌 新增計算機模式) ---
 with st.sidebar:
     st.markdown("### 🎛️ 系統模式切換")
-    app_mode = st.radio("選擇要使用的系統：", ["🔧 現場維修系統", "🧪 DEMO 實驗紀錄"], label_visibility="collapsed")
-    st.write("---")
-    st.markdown("### 📴 無塵室離線準備")
-    if app_mode == "🔧 現場維修系統":
-        df_maint = load_data("maint")
-        if not df_maint.empty:
-            st.download_button("📥 下載維修離線版 (CSV)", data=df_maint.to_csv(index=False).encode('utf-8-sig'), file_name=f"維修紀錄_{datetime.now(tz_tw).strftime('%Y%m%d')}.csv", mime="text/csv")
-    else:
-        df_demo = load_data("demo")
-        if not df_demo.empty:
-            st.download_button("📥 下載實驗離線版 (CSV)", data=df_demo.to_csv(index=False).encode('utf-8-sig'), file_name=f"實驗紀錄_{datetime.now(tz_tw).strftime('%Y%m%d')}.csv", mime="text/csv")
+    app_mode = st.radio("選擇要使用的系統：", ["🔧 現場維修系統", "🧪 DEMO 實驗紀錄", "🧮 壓模厚度計算機"], label_visibility="collapsed")
+    
+    if app_mode != "🧮 壓模厚度計算機":
+        st.write("---")
+        st.markdown("### 📴 無塵室離線準備")
+        if app_mode == "🔧 現場維修系統":
+            df_maint = load_data("maint")
+            if not df_maint.empty:
+                st.download_button("📥 下載維修離線版 (CSV)", data=df_maint.to_csv(index=False).encode('utf-8-sig'), file_name=f"維修紀錄_{datetime.now(tz_tw).strftime('%Y%m%d')}.csv", mime="text/csv")
+        elif app_mode == "🧪 DEMO 實驗紀錄":
+            df_demo = load_data("demo")
+            if not df_demo.empty:
+                st.download_button("📥 下載實驗離線版 (CSV)", data=df_demo.to_csv(index=False).encode('utf-8-sig'), file_name=f"實驗紀錄_{datetime.now(tz_tw).strftime('%Y%m%d')}.csv", mime="text/csv")
 # -----------------------------
 
 # --- 標題區塊 ---
-col1, col2 = st.columns([1, 5])
-with col1:
-    try: st.image("logo.png", width=80) 
-    except: st.title("⚙️") 
-with col2:
-    st.markdown(f"<h1 style='margin-top: -15px;'>{'設備維修知識庫' if app_mode == '🔧 現場維修系統' else 'DEMO 實驗資料庫'}</h1>", unsafe_allow_html=True)
-# -----------------------------
+if app_mode != "🧮 壓模厚度計算機":
+    col1, col2 = st.columns([1, 5])
+    with col1:
+        try: st.image("logo.png", width=80) 
+        except: st.title("⚙️") 
+    with col2:
+        st.markdown(f"<h1 style='margin-top: -15px;'>{'設備維修知識庫' if app_mode == '🔧 現場維修系統' else 'DEMO 實驗資料庫'}</h1>", unsafe_allow_html=True)
 
 # 共用 CSS 樣式
 st.markdown("""
@@ -148,6 +150,9 @@ st.markdown("""
 .glide-tag { background-color: #FFF3E0; color: #E65100; padding: 3px 8px; border-radius: 12px; font-size: 11px; display: inline-block; margin-right: 4px; margin-bottom: 6px; }
 .glide-solution { font-size: 13px; color: #D84315; background-color: #FBE9E7; padding: 8px; border-radius: 6px; margin-top: 6px; }
 .glide-img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #eee; }
+.calc-yellow { background-color: #FFF9C4; padding: 8px 12px; border-radius: 8px; border-left: 5px solid #FBC02D; font-weight: bold; margin-bottom: 10px; }
+.calc-green { background-color: #E8F5E9; padding: 12px; border-radius: 8px; border-left: 6px solid #4CAF50; font-size: 18px; font-weight: bold; color: #2E7D32; margin-top: 10px; }
+.calc-red { color: #D32F2F; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -373,15 +378,12 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             with c4: input_d_operator = st.text_input("操作人", key=f"d_oper_{fk}")
             with c5: input_d_equip = st.text_input("設備類型 (如: CVP-1600SP)", key=f"d_equip_{fk}")
             
-            # 📌 更新標題，移除開發者備註
             with st.expander("📍 基材與膜材資訊"):
                 c_s1, c_s2 = st.columns(2)
-                
                 with c_s1: 
                     input_d_sub_t = st.selectbox("板材類型", ["", "PCB", "Wafer", "Glass", "其他"], key=f"s_t_{fk}")
                     input_d_sub_t_other = st.text_input("自填板材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"s_to_{fk}")
                     input_d_sub_size = st.text_input("基板尺寸與厚度", key=f"s_d_{fk}")
-                
                 with c_s2: 
                     input_d_film_m = st.selectbox("膜材種類", ["", "ABF", "DAF", "NCF", "PI", "其他"], key=f"f_m_{fk}")
                     input_d_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"f_mo_{fk}")
@@ -454,15 +456,12 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
             with c4: input_v_operator = st.text_input("操作人", key=f"v_oper_{fk}")
             with c5: input_v_equip = st.text_input("設備類型", value="V-160", disabled=True, key=f"v_equip_{fk}") 
             
-            # 📌 更新標題，移除開發者備註
             with st.expander("📍 基材與膜材資訊"):
                 c_vs1, c_vs2 = st.columns(2)
-                
                 with c_vs1: 
                     input_v_sub_t = st.selectbox("板材類型", ["", "PCB", "Wafer", "Glass", "其他"], key=f"v_s_t_{fk}")
                     input_v_sub_t_other = st.text_input("自填板材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"v_s_to_{fk}")
                     input_v_sub_size = st.text_input("基板尺寸與厚度", key=f"v_s_d_{fk}")
-                
                 with c_vs2: 
                     input_v_film_m = st.selectbox("膜材種類", ["", "ABF", "DAF", "NCF", "PI", "其他"], key=f"v_f_m_{fk}")
                     input_v_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"v_f_mo_{fk}")
@@ -541,3 +540,56 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
     if st.session_state.success_msg:
         st.success(st.session_state.success_msg)
         st.session_state.success_msg = ""
+
+# ==========================================
+# 模式 C：全新「壓模厚度計算機」
+# ==========================================
+elif app_mode == "🧮 壓模厚度計算機":
+    st.markdown("## 🧮 壓模厚度計算機")
+    st.info("💡 填寫下方測量數值，系統將即時運算。**紅色字體**對應需要手動輸入的測量值，**黃色背景**為系統自動計算結果，**綠色框框**即為應輸入至機台 3rd 的目標參數。")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### 【1st 前】測量與設定")
+        val_1 = st.number_input("1. 板材厚度 (不含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+        val_2 = st.number_input("2. 板材厚度 (含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+        
+        val_3 = val_2 - val_1
+        st.markdown(f"<div class='calc-yellow'>3. 線路、銅柱高：{val_3:.2f}</div>", unsafe_allow_html=True)
+        
+        st.write("---")
+        val_4 = st.number_input("4. COVER 厚度 (僅供紀錄)", value=0.00, step=0.01, format="%.2f")
+        val_5 = st.number_input("5. 膜材 厚度", value=0.00, step=0.01, format="%.2f")
+        val_6 = st.number_input("6. PET 厚度", value=0.00, step=0.01, format="%.2f")
+        
+        val_7 = val_1 + val_5 + val_6
+        val_8 = val_2 + val_5 + val_6
+        st.markdown(f"<div class='calc-yellow'>7. 理論總厚度 (不含)：{val_7:.2f}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='calc-yellow'>8. 理論總厚度 (含)：{val_8:.2f}</div>", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("### 【1st 後】測量與計算")
+        val_9 = st.number_input("9. 板材厚度 (不含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+        gap_9 = val_7 - val_9 if val_9 > 0 else 0.0
+        st.markdown(f"<div class='calc-yellow'>差距 (7 減 9)：{gap_9:.2f}</div>", unsafe_allow_html=True)
+        
+        st.write("---")
+        val_10 = st.number_input("10. 板材厚度 (含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+        gap_10 = val_8 - val_10 if val_10 > 0 else 0.0
+        st.markdown(f"<div class='calc-yellow'>差距 (8 減 10)：{gap_10:.2f}</div>", unsafe_allow_html=True)
+        
+        val_11 = val_5 - val_3 - gap_10 if val_10 > 0 else 0.0
+        
+        st.write("---")
+        st.markdown(f"""
+        <div class="calc-green">
+            🎯 輸入 3rd 參數 (對應第 10 項)：{val_10:.2f}
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown(f"""
+        <div class="calc-yellow" style="margin-top:15px; border-left: 5px solid #FF8F00;">
+            11. 膜尚可壓縮量：{val_11:.2f}
+        </div>
+        """, unsafe_allow_html=True)
