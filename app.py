@@ -114,12 +114,12 @@ def load_data(mode):
         df = df.iloc[::-1].reset_index(drop=True)
     return df
 
-# --- 側邊欄：雙系統模式切換 ---
+# --- 側邊欄：雙系統模式切換 (📌 更新為產品厚度計算機) ---
 with st.sidebar:
     st.markdown("### 🎛️ 系統模式切換")
-    app_mode = st.radio("選擇要使用的系統：", ["🔧 現場維修系統", "🧪 DEMO 實驗紀錄", "🧮 壓模厚度計算機"], label_visibility="collapsed")
+    app_mode = st.radio("選擇要使用的系統：", ["🔧 現場維修系統", "🧪 DEMO 實驗紀錄", "🧮 產品厚度計算機"], label_visibility="collapsed")
     
-    if app_mode != "🧮 壓模厚度計算機":
+    if app_mode != "🧮 產品厚度計算機":
         st.write("---")
         st.markdown("### 📴 無塵室離線準備")
         if app_mode == "🔧 現場維修系統":
@@ -133,7 +133,7 @@ with st.sidebar:
 # -----------------------------
 
 # --- 標題區塊 ---
-if app_mode != "🧮 壓模厚度計算機":
+if app_mode != "🧮 產品厚度計算機":
     col1, col2 = st.columns([1, 5])
     with col1:
         try: st.image("logo.png", width=80) 
@@ -141,7 +141,7 @@ if app_mode != "🧮 壓模厚度計算機":
     with col2:
         st.markdown(f"<h1 style='margin-top: -15px;'>{'設備維修知識庫' if app_mode == '🔧 現場維修系統' else 'DEMO 實驗資料庫'}</h1>", unsafe_allow_html=True)
 
-# 📌 關鍵更新：強制指定 calc-yellow 字體顏色為深灰色 (#333333)，不受深色模式影響
+# 📌 樣式定義區
 st.markdown("""
 <style>
 .glide-card { background-color: #ffffff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 12px; border-left: 6px solid #FFA726; }
@@ -542,11 +542,12 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
         st.session_state.success_msg = ""
 
 # ==========================================
-# 模式 C：全新「壓模厚度計算機」
+# 模式 C：全新「產品厚度計算機」
 # ==========================================
-elif app_mode == "🧮 壓模厚度計算機":
-    st.markdown("## 🧮 壓模厚度計算機")
-    st.info("💡 填寫下方測量數值，系統將即時運算。**紅色字體**對應需要手動輸入的測量值，**黃色背景**為系統自動計算結果，**綠色框框**即為應輸入至機台 3rd 的目標參數。")
+elif app_mode == "🧮 產品厚度計算機":
+    st.markdown("## 🧮 產品厚度計算機")
+    # 📌 更新說明文字，拿掉「紅色字體」的描述
+    st.info("💡 請在下方輸入框填寫測量數值，系統將即時為您運算。**黃色背景**為系統自動計算的結果，**綠色框框**即為應輸入至機台 3rd 的目標產品厚度。")
     
     col1, col2 = st.columns(2)
     
@@ -565,7 +566,6 @@ elif app_mode == "🧮 壓模厚度計算機":
         
         val_7 = val_1 + val_5 + val_6
         val_8 = val_2 + val_5 + val_6
-        # 📌 更新字眼：壓合前總厚度
         st.markdown(f"<div class='calc-yellow'>7. 壓合前總厚度 (不含)：{val_7:.2f}</div>", unsafe_allow_html=True)
         st.markdown(f"<div class='calc-yellow'>8. 壓合前總厚度 (含)：{val_8:.2f}</div>", unsafe_allow_html=True)
 
@@ -573,7 +573,6 @@ elif app_mode == "🧮 壓模厚度計算機":
         st.markdown("### 【1st 後】測量與計算")
         val_9 = st.number_input("9. 板材厚度 (不含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
         gap_9 = val_7 - val_9 if val_9 > 0 else 0.0
-        # 📌 更新字眼：壓合前後差距
         st.markdown(f"<div class='calc-yellow'>壓合前後差距 (7 減 9)：{gap_9:.2f}</div>", unsafe_allow_html=True)
         
         st.write("---")
@@ -584,7 +583,6 @@ elif app_mode == "🧮 壓模厚度計算機":
         val_11 = val_5 - val_3 - gap_10 if val_10 > 0 else 0.0
         
         st.write("---")
-        # 📌 更新字眼：輸入 3rd 產品厚度
         st.markdown(f"""
         <div class="calc-green">
             🎯 輸入 3rd 產品厚度 (對應第 10 項)：{val_10:.2f}
