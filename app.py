@@ -114,7 +114,7 @@ def load_data(mode):
         df = df.iloc[::-1].reset_index(drop=True)
     return df
 
-# --- 側邊欄：雙系統模式切換 (📌 新增計算機模式) ---
+# --- 側邊欄：雙系統模式切換 ---
 with st.sidebar:
     st.markdown("### 🎛️ 系統模式切換")
     app_mode = st.radio("選擇要使用的系統：", ["🔧 現場維修系統", "🧪 DEMO 實驗紀錄", "🧮 壓模厚度計算機"], label_visibility="collapsed")
@@ -141,7 +141,7 @@ if app_mode != "🧮 壓模厚度計算機":
     with col2:
         st.markdown(f"<h1 style='margin-top: -15px;'>{'設備維修知識庫' if app_mode == '🔧 現場維修系統' else 'DEMO 實驗資料庫'}</h1>", unsafe_allow_html=True)
 
-# 共用 CSS 樣式
+# 📌 關鍵更新：強制指定 calc-yellow 字體顏色為深灰色 (#333333)，不受深色模式影響
 st.markdown("""
 <style>
 .glide-card { background-color: #ffffff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 12px; border-left: 6px solid #FFA726; }
@@ -150,7 +150,7 @@ st.markdown("""
 .glide-tag { background-color: #FFF3E0; color: #E65100; padding: 3px 8px; border-radius: 12px; font-size: 11px; display: inline-block; margin-right: 4px; margin-bottom: 6px; }
 .glide-solution { font-size: 13px; color: #D84315; background-color: #FBE9E7; padding: 8px; border-radius: 6px; margin-top: 6px; }
 .glide-img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #eee; }
-.calc-yellow { background-color: #FFF9C4; padding: 8px 12px; border-radius: 8px; border-left: 5px solid #FBC02D; font-weight: bold; margin-bottom: 10px; }
+.calc-yellow { background-color: #FFF9C4; color: #333333; padding: 8px 12px; border-radius: 8px; border-left: 5px solid #FBC02D; font-weight: bold; margin-bottom: 10px; }
 .calc-green { background-color: #E8F5E9; padding: 12px; border-radius: 8px; border-left: 6px solid #4CAF50; font-size: 18px; font-weight: bold; color: #2E7D32; margin-top: 10px; }
 .calc-red { color: #D32F2F; font-weight: bold; }
 </style>
@@ -565,26 +565,29 @@ elif app_mode == "🧮 壓模厚度計算機":
         
         val_7 = val_1 + val_5 + val_6
         val_8 = val_2 + val_5 + val_6
-        st.markdown(f"<div class='calc-yellow'>7. 理論總厚度 (不含)：{val_7:.2f}</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='calc-yellow'>8. 理論總厚度 (含)：{val_8:.2f}</div>", unsafe_allow_html=True)
+        # 📌 更新字眼：壓合前總厚度
+        st.markdown(f"<div class='calc-yellow'>7. 壓合前總厚度 (不含)：{val_7:.2f}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='calc-yellow'>8. 壓合前總厚度 (含)：{val_8:.2f}</div>", unsafe_allow_html=True)
 
     with col2:
         st.markdown("### 【1st 後】測量與計算")
         val_9 = st.number_input("9. 板材厚度 (不含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
         gap_9 = val_7 - val_9 if val_9 > 0 else 0.0
-        st.markdown(f"<div class='calc-yellow'>差距 (7 減 9)：{gap_9:.2f}</div>", unsafe_allow_html=True)
+        # 📌 更新字眼：壓合前後差距
+        st.markdown(f"<div class='calc-yellow'>壓合前後差距 (7 減 9)：{gap_9:.2f}</div>", unsafe_allow_html=True)
         
         st.write("---")
         val_10 = st.number_input("10. 板材厚度 (含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
         gap_10 = val_8 - val_10 if val_10 > 0 else 0.0
-        st.markdown(f"<div class='calc-yellow'>差距 (8 減 10)：{gap_10:.2f}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='calc-yellow'>壓合前後差距 (8 減 10)：{gap_10:.2f}</div>", unsafe_allow_html=True)
         
         val_11 = val_5 - val_3 - gap_10 if val_10 > 0 else 0.0
         
         st.write("---")
+        # 📌 更新字眼：輸入 3rd 產品厚度
         st.markdown(f"""
         <div class="calc-green">
-            🎯 輸入 3rd 參數 (對應第 10 項)：{val_10:.2f}
+            🎯 輸入 3rd 產品厚度 (對應第 10 項)：{val_10:.2f}
         </div>
         """, unsafe_allow_html=True)
         
