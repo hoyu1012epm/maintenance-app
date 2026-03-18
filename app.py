@@ -114,7 +114,7 @@ def load_data(mode):
         df = df.iloc[::-1].reset_index(drop=True)
     return df
 
-# --- 側邊欄：雙系統模式切換 (📌 更新為產品厚度計算機) ---
+# --- 側邊欄：雙系統模式切換 ---
 with st.sidebar:
     st.markdown("### 🎛️ 系統模式切換")
     app_mode = st.radio("選擇要使用的系統：", ["🔧 現場維修系統", "🧪 DEMO 實驗紀錄", "🧮 產品厚度計算機"], label_visibility="collapsed")
@@ -322,7 +322,8 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                 f_m = str(row.get('Film_Material', '')).strip()
                 f_mod = str(row.get('Film_Model', '')).strip()
                 
-                sub_dict = {"板材類型": s_t, "基板尺寸": s_s, "膜材種類": f_m, "膜材型號": f_mod}
+                # 📌 查詢顯示的標籤也同步修改為 "膜材型號 / 厚度"
+                sub_dict = {"板材類型": s_t, "基板尺寸": s_s, "膜材種類": f_m, "膜材型號 / 厚度": f_mod}
                 html_sub = format_params_html(pack_params(sub_dict))
                 
                 html_pre = format_params_html(row.get('Pre_Lam', ''))
@@ -387,7 +388,8 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                 with c_s2: 
                     input_d_film_m = st.selectbox("膜材種類", ["", "ABF", "DAF", "NCF", "PI", "其他"], key=f"f_m_{fk}")
                     input_d_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"f_mo_{fk}")
-                    input_d_film_model = st.text_input("膜材型號 (如: Ajinomoto GX92)", key=f"f_mod_{fk}")
+                    # 📌 更新為「膜材型號 / 厚度」
+                    input_d_film_model = st.text_input("膜材型號 / 厚度", key=f"f_mod_{fk}")
             
             st.write("---")
             st.markdown("##### ⚙️ 各站機台參數設定 (沒填寫的欄位將自動隱藏)")
@@ -465,7 +467,8 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
                 with c_vs2: 
                     input_v_film_m = st.selectbox("膜材種類", ["", "ABF", "DAF", "NCF", "PI", "其他"], key=f"v_f_m_{fk}")
                     input_v_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"v_f_mo_{fk}")
-                    input_v_film_model = st.text_input("膜材型號 (如: Ajinomoto GX92)", key=f"v_f_mod_{fk}")
+                    # 📌 更新為「膜材型號 / 厚度」
+                    input_v_film_model = st.text_input("膜材型號 / 厚度", key=f"v_f_mod_{fk}")
             
             st.write("---")
             
@@ -546,7 +549,6 @@ elif app_mode == "🧪 DEMO 實驗紀錄":
 # ==========================================
 elif app_mode == "🧮 產品厚度計算機":
     st.markdown("## 🧮 產品厚度計算機")
-    # 📌 更新說明文字，拿掉「紅色字體」的描述
     st.info("💡 請在下方輸入框填寫測量數值，系統將即時為您運算。**黃色背景**為系統自動計算的結果，**綠色框框**即為應輸入至機台 3rd 的目標產品厚度。")
     
     col1, col2 = st.columns(2)
