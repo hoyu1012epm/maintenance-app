@@ -31,13 +31,24 @@ GAS_URL = "https://script.google.com/macros/s/AKfycbxEVcNlZjjFEmkQmH8Ft-P8mVTSQl
 def hash_pw(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# --- 🛠️ 輔助功能區 (打包參數與顯示過濾) ---
+# --- 🛠️ 輔助功能區 (打包與反解包參數) ---
 def pack_params(param_dict):
     lines = []
     for k, v in param_dict.items():
         if v and str(v).strip() and str(v).strip() != "nan":
             lines.append(f"{k}：{v.strip()}")
     return "\n".join(lines) if lines else "無"
+
+# 📌 全新魔法：把試算表的文字拆解成字典，讓修改表單能讀懂
+def unpack_params(param_str):
+    if pd.isna(param_str) or str(param_str).strip() in ["", "無", "nan", "None"]:
+        return {}
+    res = {}
+    for line in str(param_str).split('\n'):
+        if '：' in line:
+            k, v = line.split('：', 1)
+            res[k.strip()] = v.strip()
+    return res
 
 def format_params_html(raw_text):
     if str(raw_text).strip() in ["", "無", "nan", "None", "NaN"]:
@@ -51,35 +62,41 @@ def format_params_html(raw_text):
         valid_lines.append(line)
     return "<br>".join(valid_lines) if valid_lines else ""
 
-# 📌 壓模機輸入 UI (新增模式共用)
-def render_lam_inputs(stage_name, key_prefix, fk):
+# 📌 壓模機輸入 UI (新增與修改共用，加入 defaults 預設值參數)
+def render_lam_inputs(stage_name, key_prefix, fk, defaults=None):
+    defaults = defaults or {}
     with st.expander(f"📍 {stage_name} 參數"):
         c1, c2 = st.columns(2)
-        with c1: t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t_{fk}")
-        with c2: t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv_{fk}")
+        with c1: t = st.text_input("溫度 (℃)", value=defaults.get("溫度 (℃)", ""), key=f"{key_prefix}_t_{fk}")
+        with c2: t_v = st.text_input("抽真空時間 (sec)", value=defaults.get("抽真空時間 (sec)", ""), key=f"{key_prefix}_tv_{fk}")
         c3, c4 = st.columns(2)
-        with c3: p = st.text_input("加壓壓力 (kgf/cm²)", key=f"{key_prefix}_p_{fk}")
-        with c4: t_p = st.text_input("加壓時間 (sec)", key=f"{key_prefix}_tp_{fk}")
+        with c3: p = st.text_input("加壓壓力 (kgf/cm²)", value=defaults.get("加壓壓力 (kgf/cm²)", ""), key=f"{key_prefix}_p_{fk}")
+        with c4: t_p = st.text_input("加壓時間 (sec)", value=defaults.get("加壓時間 (sec)", ""), key=f"{key_prefix}_tp_{fk}")
         return {"溫度 (℃)": t, "抽真空時間 (sec)": t_v, "加壓壓力 (kgf/cm²)": p, "加壓時間 (sec)": t_p}
 
-def render_lam3_inputs(stage_name, key_prefix, fk):
+def render_lam3_inputs(stage_name, key_prefix, fk, defaults=None):
+    defaults = defaults or {}
     with st.expander(f"📍 {stage_name} 參數 (伺服控制)"):
-        mode = st.selectbox("控制模式", ["", "Position", "Press", "Fit"], key=f"{key_prefix}_mode_{fk}")
+        modes = ["", "Position", "Press", "Fit"]
+        old_mode = defaults.get("控制模式", "")
+        m_idx = modes.index(old_mode) if old_mode in modes else 0
+        
+        mode = st.selectbox("控制模式", modes, index=m_idx, key=f"{key_prefix}_mode_{fk}")
         st.write("---")
         c1, c2 = st.columns(2)
-        with c1: t = st.text_input("溫度 (℃)", key=f"{key_prefix}_t_{fk}")
-        with c2: t_v = st.text_input("抽真空時間 (sec)", key=f"{key_prefix}_tv_{fk}")
+        with c1: t = st.text_input("溫度 (℃)", value=defaults.get("溫度 (℃)", ""), key=f"{key_prefix}_t_{fk}")
+        with c2: t_v = st.text_input("抽真空時間 (sec)", value=defaults.get("抽真空時間 (sec)", ""), key=f"{key_prefix}_tv_{fk}")
         c3, c4 = st.columns(2)
-        with c3: thick = st.text_input("目前產品厚度 (mm)", key=f"{key_prefix}_thk_{fk}")
+        with c3: thick = st.text_input("目前產品厚度 (mm)", value=defaults.get("目前產品厚度 (mm)", ""), key=f"{key_prefix}_thk_{fk}")
         st.markdown("###### 🎯 模式專屬參數 (未填將自動隱藏)")
         c5, c6, c7 = st.columns(3)
-        with c5: pos_v = st.text_input("【Position】厚度補償", key=f"{key_prefix}_pos_{fk}")
-        with c6: press_v = st.text_input("【Press】加壓壓力", key=f"{key_prefix}_prs_{fk}")
-        with c7: fit_v = st.text_input("【Fit】推進量", key=f"{key_prefix}_fit_{fk}")
+        with c5: pos_v = st.text_input("【Position】厚度補償", value=defaults.get("厚度補償 (Position)", ""), key=f"{key_prefix}_pos_{fk}")
+        with c6: press_v = st.text_input("【Press】加壓壓力", value=defaults.get("加壓壓力 (Press)", ""), key=f"{key_prefix}_prs_{fk}")
+        with c7: fit_v = st.text_input("【Fit】推進量", value=defaults.get("推進量 (Fit)", ""), key=f"{key_prefix}_fit_{fk}")
         st.write("---")
         c8, c9 = st.columns(2)
-        with c8: spd = st.text_input("加壓推速度 (mm/sec)", key=f"{key_prefix}_spd_{fk}")
-        with c9: t_p = st.text_input("加壓時間 (sec)", key=f"{key_prefix}_tp_{fk}")
+        with c8: spd = st.text_input("加壓推速度 (mm/sec)", value=defaults.get("加壓推速度 (mm/sec)", ""), key=f"{key_prefix}_spd_{fk}")
+        with c9: t_p = st.text_input("加壓時間 (sec)", value=defaults.get("加壓時間 (sec)", ""), key=f"{key_prefix}_tp_{fk}")
         return {
             "控制模式": mode, "溫度 (℃)": t, "抽真空時間 (sec)": t_v, "目前產品厚度 (mm)": thick, 
             "厚度補償 (Position)": pos_v, "加壓壓力 (Press)": press_v, "推進量 (Fit)": fit_v,
@@ -333,18 +350,15 @@ else:
             else:
                 st.info("目前系統中還沒有資料！")
 
-        # 📌 完美解鎖：維修修改系統
         with tab4:
             st.subheader("✏️ 修改我的維修紀錄")
             edit_m_id = st.text_input("🔍 請輸入要修改的維修單號 (例如: REP-260326-1200)", key="edit_m_id")
-            
             if edit_m_id and not df.empty:
                 row_data = df[df['Log_ID'] == edit_m_id]
                 if row_data.empty:
                     st.error("❌ 找不到此單號，請確認是否輸入正確。")
                 else:
                     row_dict = row_data.iloc[0].to_dict()
-                    # 🛡️ 權限檢核機制：必須是本人，或是 Admin 才放行
                     if str(row_dict.get('Engineer', '')).strip() != st.session_state.user_name and st.session_state.role != 'Admin':
                         st.error(f"⛔ 權限不足！此單據為 {row_dict.get('Engineer', '他人')} 建立，您只能修改本人的紀錄。")
                     else:
@@ -483,7 +497,6 @@ else:
                         input_d_film_model = st.text_input("膜材型號 / 厚度", key=f"f_mod_{fk}")
                 
                 st.write("---")
-                st.markdown("##### ⚙️ 各站機台參數設定 (沒填寫的欄位將自動隱藏)")
                 with st.expander("📍 預貼機參數"):
                     c_p1, c_p2 = st.columns(2)
                     with c_p1: pre_t = st.text_input("預貼溫度 (℃)", key=f"p_t_{fk}")
@@ -614,10 +627,9 @@ else:
                             st.session_state.form_key += 1
                             st.rerun()
 
-        # 📌 完美解鎖：DEMO 實驗紀錄修改系統 (進階模式)
+        # 📌 完美解鎖：DEMO 實驗紀錄修改系統 (還原 UI 模式)
         with tab_d4:
-            st.subheader("✏️ 修改我的實驗紀錄 (Pro 模式)")
-            st.info("💡 系統已自動將複雜的機台參數轉換為純文字編輯模式，請直接在對應的文字框內修正數值，此設計可確保原有的特殊設定不走位。")
+            st.subheader("✏️ 修改我的實驗紀錄")
             edit_d_id = st.text_input("🔍 請輸入要修改的實驗單號 (例如: DEMO-260326-1200)", key="edit_d_id")
             
             if edit_d_id and not df_d.empty:
@@ -626,7 +638,6 @@ else:
                     st.error("❌ 找不到此單號，請確認是否輸入正確。")
                 else:
                     row_dict = row_data.iloc[0].to_dict()
-                    # 🛡️ 權限檢核機制
                     if str(row_dict.get('Operator', '')).strip() != st.session_state.user_name and st.session_state.role != 'Admin':
                         st.error(f"⛔ 權限不足！此實驗單為 {row_dict.get('Operator', '他人')} 建立，您只能修改本人的紀錄。")
                     else:
@@ -645,29 +656,67 @@ else:
                             
                             with st.expander("📍 修改：基材與膜材資訊", expanded=True):
                                 c_s1, c_s2 = st.columns(2)
+                                
+                                old_st = str(row_dict.get('Substrate_Type', ''))
+                                st_opts = ["", "PCB", "Wafer", "Glass", "其他"]
+                                st_idx = st_opts.index(old_st) if old_st in st_opts else 4
                                 with c_s1: 
-                                    ed_sub_t = st.text_input("板材類型", value=str(row_dict.get('Substrate_Type', '')), key="ed_st")
+                                    ed_sub_t = st.selectbox("板材類型", st_opts, index=st_idx, key="ed_st")
+                                    ed_sub_t_other = st.text_input("自填板材", value=old_st if st_idx == 4 else "", label_visibility="collapsed", key="ed_sto")
                                     ed_sub_size = st.text_input("基板尺寸與厚度", value=str(row_dict.get('Substrate_Size', '')), key="ed_sd")
+                                
+                                old_fm = str(row_dict.get('Film_Material', ''))
+                                fm_opts = ["", "ABF", "DAF", "NCF", "PI", "其他"]
+                                fm_idx = fm_opts.index(old_fm) if old_fm in fm_opts else 5
                                 with c_s2: 
-                                    ed_film_m = st.text_input("膜材種類", value=str(row_dict.get('Film_Material', '')), key="ed_fm")
+                                    ed_film_m = st.selectbox("膜材種類", fm_opts, index=fm_idx, key="ed_fm")
+                                    ed_film_m_other = st.text_input("自填膜材", value=old_fm if fm_idx == 5 else "", label_visibility="collapsed", key="ed_fmo")
                                     ed_film_model = st.text_input("膜材型號 / 厚度", value=str(row_dict.get('Film_Model', '')), key="ed_fmod")
                             
                             st.write("---")
-                            # 📌 採用「純文字編輯模式 (Pro Mode)」避免格式走位
+                            
+                            # 📌 神奇的資料反解包與 UI 還原
                             is_v160 = "V-160" in str(row_dict.get('Equipment', '')).upper() or "V160" in str(row_dict.get('Equipment', '')).upper()
                             
-                            with st.expander("⚙️ 修改：機台參數 (進階文字編輯)", expanded=True):
-                                if is_v160:
-                                    ed_v_params = st.text_area("🔹 V-160 參數", value=str(row_dict.get('Lam_1st', '')).replace('無', ''), height=200, key="ed_v_p")
-                                    ed_pre, ed_l1, ed_l2, ed_l3 = "無", ed_v_params, "無", "無"
-                                else:
-                                    c_p, c_l1 = st.columns(2)
-                                    with c_p: ed_pre = st.text_area("🔹 預貼機參數", value=str(row_dict.get('Pre_Lam', '')).replace('無', ''), height=120, key="ed_pre")
-                                    with c_l1: ed_l1 = st.text_area("🔹 1st 壓模參數", value=str(row_dict.get('Lam_1st', '')).replace('無', ''), height=120, key="ed_l1")
+                            if is_v160:
+                                v_defs = unpack_params(row_dict.get('Lam_1st', ''))
+                                with st.expander("📍 V-160 參數", expanded=True):
+                                    c_v1, c_v2 = st.columns(2)
+                                    v_modes = ["", "上", "下", "上下"]
+                                    old_vmode = v_defs.get("加壓模式", "")
+                                    vm_idx = v_modes.index(old_vmode) if old_vmode in v_modes else 0
+                                    with c_v1: ed_v_mode = st.selectbox("加壓模式", v_modes, index=vm_idx, key="ed_vm")
+                                    with c_v2: ed_v_tv = st.text_input("下真空時間 (sec)", value=v_defs.get("下真空時間 (sec)", ""), key="ed_v_tv")
                                     
-                                    c_l2, c_l3 = st.columns(2)
-                                    with c_l2: ed_l2 = st.text_area("🔹 2nd 壓模參數", value=str(row_dict.get('Lam_2nd', '')).replace('無', ''), height=150, key="ed_l2")
-                                    with c_l3: ed_l3 = st.text_area("🔹 3rd 壓模參數", value=str(row_dict.get('Lam_3rd', '')).replace('無', ''), height=150, key="ed_l3")
+                                    c_v3, c_v4 = st.columns(2)
+                                    with c_v3: ed_v_tt = st.text_input("上溫度 (℃)", value=v_defs.get("上溫度 (℃)", ""), key="ed_v_tt")
+                                    with c_v4: ed_v_tb = st.text_input("下溫度 (℃)", value=v_defs.get("下溫度 (℃)", ""), key="ed_v_tb")
+                                    
+                                    st.write("---")
+                                    ed_v_tdrop_t = st.text_input("上硅膠墊垂落時間 (sec)", value=v_defs.get("上硅膠墊垂落時間 (sec)", ""), key="ed_v_tdt")
+                                    c_v5, c_v6 = st.columns(2)
+                                    with c_v5: ed_v_pt = st.text_input("上氣囊加壓壓力 (kgf/cm²)", value=v_defs.get("上氣囊加壓壓力 (kgf/cm²)", ""), key="ed_v_pt")
+                                    with c_v6: ed_v_tpt = st.text_input("上氣囊加壓時間 (sec)", value=v_defs.get("上氣囊加壓時間 (sec)", ""), key="ed_v_tpt")
+                                    
+                                    st.write("---")
+                                    ed_v_dly_b = st.text_input("下加壓延遲時間 (sec)", value=v_defs.get("下加壓延遲時間 (sec)", ""), key="ed_v_db")
+                                    ed_v_tdrop_b = st.text_input("下硅膠墊垂落時間 (sec)", value=v_defs.get("下硅膠墊垂落時間 (sec)", ""), key="ed_v_tdb")
+                                    c_v7, c_v8 = st.columns(2)
+                                    with c_v7: ed_v_pb = st.text_input("下加壓壓力 (kgf/cm²)", value=v_defs.get("下加壓壓力 (kgf/cm²)", ""), key="ed_v_pb")
+                                    with c_v8: ed_v_tpb = st.text_input("下加壓時間 (sec)", value=v_defs.get("下加壓時間 (sec)", ""), key="ed_v_tpb")
+                            else:
+                                pre_defs = unpack_params(row_dict.get('Pre_Lam', ''))
+                                with st.expander("📍 預貼機參數", expanded=True):
+                                    c_p1, c_p2 = st.columns(2)
+                                    with c_p1: ed_pre_t = st.text_input("預貼溫度 (℃)", value=pre_defs.get("預貼溫度 (℃)", ""), key="ed_p_t")
+                                    with c_p2: ed_pre_s = st.text_input("預貼速度 (m/min)", value=pre_defs.get("預貼速度 (m/min)", ""), key="ed_p_s")
+                                    c_p3, c_p4 = st.columns(2)
+                                    with c_p3: ed_pre_p = st.text_input("預貼壓力 (MPa)", value=pre_defs.get("預貼壓力 (MPa)", ""), key="ed_p_p")
+                                    with c_p4: ed_pre_m = st.text_input("前後留邊量 (前mm / 後mm)", value=pre_defs.get("前後留邊量", ""), key="ed_p_m")
+                                        
+                                ed_l1_dict = render_lam_inputs("1st 壓模機", "el1", "edit", unpack_params(row_dict.get('Lam_1st', '')))
+                                ed_l2_dict = render_lam_inputs("2nd 壓模機", "el2", "edit", unpack_params(row_dict.get('Lam_2nd', '')))
+                                ed_l3_dict = render_lam3_inputs("3rd 壓模機", "el3", "edit", unpack_params(row_dict.get('Lam_3rd', '')))
                             
                             st.write("---")
                             
@@ -684,19 +733,30 @@ else:
                             ed_upload = st.file_uploader("🖼️ 更新測試照片 (選填，若無上傳將保留舊照片)", type=['jpg', 'png', 'jpeg'], key="ed_photo")
                             
                             if st.form_submit_button("💾 覆蓋更新實驗紀錄"):
-                                with st.spinner("更新雲端資料庫中..."):
+                                with st.spinner("打包與更新雲端資料庫中..."):
                                     new_photo_url = upload_image(ed_upload, f"{edit_d_id}_edit.jpg") if ed_upload else str(row_dict.get('Photo_URL', ''))
                                     
-                                    # 處理空字串回填 "無" 避免影響顯示邏輯
-                                    final_pre = ed_pre.strip() if ed_pre.strip() else "無"
-                                    final_l1 = ed_l1.strip() if ed_l1.strip() else "無"
-                                    final_l2 = ed_l2.strip() if ed_l2.strip() else "無"
-                                    final_l3 = ed_l3.strip() if ed_l3.strip() else "無"
+                                    final_ed_sub_t = ed_sub_t_other if ed_sub_t == "其他" else ed_sub_t
+                                    final_ed_film_m = ed_film_m_other if ed_film_m == "其他" else ed_film_m
+                                    
+                                    if is_v160:
+                                        new_v_dict = {
+                                            "加壓模式": ed_v_mode, "下真空時間 (sec)": ed_v_tv, "上溫度 (℃)": ed_v_tt, "下溫度 (℃)": ed_v_tb,
+                                            "上硅膠墊垂落時間 (sec)": ed_v_tdrop_t, "上氣囊加壓壓力 (kgf/cm²)": ed_v_pt, "上氣囊加壓時間 (sec)": ed_v_tpt,
+                                            "下加壓延遲時間 (sec)": ed_v_dly_b, "下硅膠墊垂落時間 (sec)": ed_v_tdrop_b,
+                                            "下加壓壓力 (kgf/cm²)": ed_v_pb, "下加壓時間 (sec)": ed_v_tpb
+                                        }
+                                        final_pre, final_l1, final_l2, final_l3 = "無", pack_params(new_v_dict), "無", "無"
+                                    else:
+                                        final_pre = pack_params({"預貼溫度 (℃)": ed_pre_t, "預貼壓力 (MPa)": ed_pre_p, "預貼速度 (m/min)": ed_pre_s, "前後留邊量": ed_pre_m})
+                                        final_l1 = pack_params(ed_l1_dict)
+                                        final_l2 = pack_params(ed_l2_dict)
+                                        final_l3 = pack_params(ed_l3_dict)
 
                                     new_d_row = [
                                         edit_d_id, ed_date.strftime("%Y-%m-%d"), ed_operator, 
                                         ed_customer, ed_equip, 
-                                        ed_sub_t, ed_sub_size, ed_film_m, ed_film_model, 
+                                        final_ed_sub_t, ed_sub_size, final_ed_film_m, ed_film_model, 
                                         final_pre, final_l1, final_l2, final_l3, 
                                         ed_qty, ed_eval, ed_remark, ed_feedback, new_photo_url
                                     ]
