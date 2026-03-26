@@ -410,7 +410,7 @@ else:
                                 sheet_maint.update(values=[new_m_row], range_name=f"A{cell.row}:I{cell.row}")
                                 st.cache_data.clear()
                                 edit_m_msg.success(f"✅ 單號 {edit_m_id} 更新成功！")
-                                # ==========================================
+    # ==========================================
     # 模式 B：DEMO 實驗紀錄
     # ==========================================
     elif app_mode == "🧪 DEMO 實驗紀錄":
@@ -505,14 +505,24 @@ else:
             fk = st.session_state.form_key
             st.subheader("🧪 填寫實驗紀錄 (NT+CVP)")
             
-            # 📌 神級提速功能：一鍵帶入歷史參數 (Clone)
+            # 📌 神級提速功能：一鍵帶入歷史參數 (Clone) + 記憶體強制洗腦魔法
             clone_nt_dict = {}
             if not df_demo.empty:
-                history_opts_nt = [""] + [f"{r['Log_ID']} (客戶:{r['Customer']} | 機台:{r['Equipment']})" for idx, r in df_demo.iterrows() if "V-160" not in str(r['Equipment']).upper()]
-                clone_sel_nt = st.selectbox("⚡ 一鍵帶入歷史參數 (選擇後自動填滿下方欄位)", history_opts_nt, key=f"clone_nt_{fk}")
+                history_opts_nt = [""] + [f"{r['Log_ID']} (客戶:{r['Customer']} | 機台:{r['Equipment']})" for idx, r in df_demo.iterrows() if "V-160" not in str(r['Equipment']).upper() and "V160" not in str(r['Equipment']).upper()]
+                clone_sel_nt = st.selectbox("⚡ 一鍵帶入歷史參數 (選擇後自動填滿下方欄位)", history_opts_nt, key=f"clone_nt_sel_{fk}")
+                
                 if clone_sel_nt:
+                    if st.session_state.get(f"last_clone_nt_{fk}") != clone_sel_nt:
+                        # 強制清除這個表單的所有舊記憶，讓數值能夠被成功帶入
+                        for k in list(st.session_state.keys()):
+                            if k.endswith(f"_{fk}") and not k.startswith("clone_"):
+                                del st.session_state[k]
+                        st.session_state[f"last_clone_nt_{fk}"] = clone_sel_nt
+                        
                     clone_id = clone_sel_nt.split(" ")[0]
                     clone_nt_dict = df_demo[df_demo['Log_ID'] == clone_id].iloc[0].to_dict()
+                else:
+                    st.session_state[f"last_clone_nt_{fk}"] = ""
 
             with st.form(f"demo_form_{fk}", clear_on_submit=True):
                 c1, c2 = st.columns(2)
@@ -564,10 +574,14 @@ else:
                 st.write("---")
                 c_q1, c_q2 = st.columns(2)
                 with c_q1: input_d_qty = st.text_input("壓合數量 (片/次)", value=str(clone_nt_dict.get('Qty', '')), key=f"d_qty_{fk}")
-                with c_q2: input_d_eval = st.selectbox("內部自評結果", ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"], key=f"d_eval_{fk}")
                 
-                input_d_remark = st.text_area("備註 (測試變動說明、具體異常)", key=f"d_rmk_{fk}")
-                input_d_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", key=f"d_fb_{fk}")
+                eval_opts = ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"]
+                old_eval = str(clone_nt_dict.get('Self_Eval', ''))
+                e_idx = eval_opts.index(old_eval) if old_eval in eval_opts else 0
+                with c_q2: input_d_eval = st.selectbox("內部自評結果", eval_opts, index=e_idx, key=f"d_eval_{fk}")
+                
+                input_d_remark = st.text_area("備註 (測試變動說明、具體異常)", value=str(clone_nt_dict.get('Remarks', '')), key=f"d_rmk_{fk}")
+                input_d_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", value=str(clone_nt_dict.get('Feedback', '')), key=f"d_fb_{fk}")
                 upload_d_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"d_photo_{fk}")
                 
                 st.write("---")
@@ -599,16 +613,25 @@ else:
             clone_v_dict = {}
             if not df_demo.empty:
                 history_opts_v = [""] + [f"{r['Log_ID']} (客戶:{r['Customer']} | 機台:{r['Equipment']})" for idx, r in df_demo.iterrows() if "V-160" in str(r['Equipment']).upper() or "V160" in str(r['Equipment']).upper()]
-                clone_sel_v = st.selectbox("⚡ 一鍵帶入歷史參數 (選擇後自動填滿下方欄位)", history_opts_v, key=f"clone_v_{fk}")
+                clone_sel_v = st.selectbox("⚡ 一鍵帶入歷史參數 (選擇後自動填滿下方欄位)", history_opts_v, key=f"clone_v_sel_{fk}")
+                
                 if clone_sel_v:
+                    if st.session_state.get(f"last_clone_v_{fk}") != clone_sel_v:
+                        # 強制清除這個表單的所有舊記憶
+                        for k in list(st.session_state.keys()):
+                            if k.endswith(f"_{fk}") and not k.startswith("clone_"):
+                                del st.session_state[k]
+                        st.session_state[f"last_clone_v_{fk}"] = clone_sel_v
+                        
                     clone_id = clone_sel_v.split(" ")[0]
                     clone_v_dict = df_demo[df_demo['Log_ID'] == clone_id].iloc[0].to_dict()
+                else:
+                    st.session_state[f"last_clone_v_{fk}"] = ""
 
             with st.form(f"v160_form_{fk}", clear_on_submit=True):
                 c1, c2 = st.columns(2)
                 with c1: input_v_date = st.date_input("測試日期", datetime.now(tz_tw).date(), key=f"v_date_{fk}")
                 
-                # 📌 動態客戶選單
                 c_cust1, c_cust2 = st.columns(2)
                 old_cust_v = str(clone_v_dict.get('Customer', ''))
                 c_idx_v = unique_cust.index(old_cust_v) + 1 if old_cust_v in unique_cust else 0
@@ -670,8 +693,8 @@ else:
                 e_idx = eval_opts.index(old_eval) if old_eval in eval_opts else 0
                 with c_vq2: input_v_eval = st.selectbox("內部自評結果", eval_opts, index=e_idx, key=f"v_eval_{fk}")
                 
-                input_v_remark = st.text_area("備註 (測試變動說明、具體異常)", key=f"v_rmk_{fk}")
-                input_v_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", key=f"v_fb_{fk}")
+                input_v_remark = st.text_area("備註 (測試變動說明、具體異常)", value=str(clone_v_dict.get('Remarks', '')), key=f"v_rmk_{fk}")
+                input_v_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", value=str(clone_v_dict.get('Feedback', '')), key=f"v_fb_{fk}")
                 upload_v_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"v_photo_{fk}")
                 
                 st.write("---")
@@ -826,7 +849,7 @@ else:
                                 sheet_demo.update(values=[new_d_row], range_name=f"A{cell.row}:R{cell.row}")
                                 st.cache_data.clear()
                                 edit_d_msg.success(f"✅ 實驗單號 {edit_d_id} 更新成功！")
-                                # ==========================================
+    # ==========================================
     # 模式 C：產品厚度計算機
     # ==========================================
     elif app_mode == "🧮 產品厚度計算機":
