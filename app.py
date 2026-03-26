@@ -155,7 +155,8 @@ if not st.session_state.logged_in:
     st.markdown("<p style='text-align: center; color: #666;'>請輸入您的工號與密碼以登入系統</p>", unsafe_allow_html=True)
     
     with st.form("login_form"):
-        emp_id = st.text_input("工號 (Emp ID)", placeholder="例如: E001")
+        # 📌 全面更新為 EPM_ID
+        emp_id = st.text_input("工號 (EPM_ID)", placeholder="例如: E001")
         password = st.text_input("密碼", type="password")
         submitted = st.form_submit_button("登入", use_container_width=True)
         
@@ -164,7 +165,7 @@ if not st.session_state.logged_in:
                 st.error("⚠️ 請輸入工號與密碼！")
             else:
                 users_df = load_data("users")
-                user_record = users_df[users_df['Emp_ID'].astype(str) == emp_id]
+                user_record = users_df[users_df['EPM_ID'].astype(str) == emp_id]
                 
                 if user_record.empty:
                     st.error("❌ 找不到此工號，請聯絡系統管理員。")
@@ -351,53 +352,59 @@ else:
 
         with tab4:
             st.subheader("✏️ 修改我的維修紀錄")
-            edit_m_id = st.text_input("🔍 請輸入要修改的維修單號 (例如: REP-260326-1200)", key="edit_m_id")
-            if edit_m_id and not df.empty:
-                row_data = df[df['Log_ID'] == edit_m_id]
-                if row_data.empty:
-                    st.error("❌ 找不到此單號，請確認是否輸入正確。")
-                else:
+            # 📌 智慧下拉選單
+            if st.session_state.role == 'Admin':
+                my_df = df.copy()
+                st.info("👑 管理員模式：您可以看到並修改所有人的紀錄。")
+            else:
+                my_df = df[df['Engineer'].astype(str).str.strip() == st.session_state.user_name]
+            
+            if my_df.empty:
+                st.warning("您目前還沒有建立過任何維修紀錄喔！")
+            else:
+                options = [""] + [f"{r['Log_ID']} (日期: {r['Date']} | 客戶: {r['Customer']} | 機台: {r['Machine_Model']})" for idx, r in my_df.iterrows()]
+                selected_m = st.selectbox("🔍 請選擇要修改的維修單 (支援關鍵字搜尋)", options, key="select_edit_m")
+                
+                if selected_m:
+                    edit_m_id = selected_m.split(" (")[0]
+                    row_data = df[df['Log_ID'] == edit_m_id]
                     row_dict = row_data.iloc[0].to_dict()
-                    if str(row_dict.get('Engineer', '')).strip() != st.session_state.user_name and st.session_state.role != 'Admin':
-                        st.error(f"⛔ 權限不足！此單據為 {row_dict.get('Engineer', '他人')} 建立，您只能修改本人的紀錄。")
-                    else:
-                        st.success(f"✅ 成功載入單號：{edit_m_id} (若不需修改照片請留空)")
-                        # 📌 綁定動態 Key edit_m_id
-                        with st.form(f"edit_m_form_{edit_m_id}"):
-                            try: old_date = datetime.strptime(str(row_dict.get('Date', '')), "%Y-%m-%d").date()
-                            except: old_date = datetime.now(tz_tw).date()
-                            
-                            e_date = st.date_input("日期", value=old_date, key=f"em_date_{edit_m_id}")
-                            e_engineer = st.text_input("填單人員", value=str(row_dict.get('Engineer', '')), disabled=True, key=f"em_eng_{edit_m_id}")
-                            e_customer = st.text_input("客戶與廠區", value=str(row_dict.get('Customer', '')), key=f"em_cust_{edit_m_id}")
-                            
-                            mach_opts = ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"]
-                            old_mach = str(row_dict.get('Machine_Model', ''))
-                            m_idx = mach_opts.index(old_mach) if old_mach in mach_opts else None
-                            e_machine = st.selectbox("設備機型", mach_opts, index=m_idx, key=f"em_mach_{edit_m_id}")
-                            
-                            comp_options = ["預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"]
-                            old_comp = str(row_dict.get('Component', ''))
-                            c_idx = comp_options.index(old_comp) if old_comp in comp_options else None
-                            e_component = st.selectbox("異常部件", comp_options, index=c_idx, key=f"em_comp_{edit_m_id}")
-                            
-                            e_issue = st.text_area("問題描述", value=str(row_dict.get('Issue_Desc', '')), key=f"em_iss_{edit_m_id}")
-                            e_solution = st.text_area("解決方案", value=str(row_dict.get('Solution', '')), key=f"em_sol_{edit_m_id}")
-                            e_upload = st.file_uploader("🖼️ 更新現場照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"em_photo_{edit_m_id}")
-                            
-                            if st.form_submit_button("💾 覆蓋更新紀錄", key=f"btn_em_{edit_m_id}"):
-                                with st.spinner("更新雲端資料庫中..."):
-                                    new_photo_url = upload_image(e_upload, f"{edit_m_id}_edit.jpg") if e_upload else str(row_dict.get('Photo_URL', ''))
-                                    new_m_row = [
-                                        edit_m_id, e_date.strftime("%Y-%m-%d"), e_engineer, e_customer, 
-                                        e_machine, e_component, e_issue, e_solution, new_photo_url
-                                    ]
-                                    cell = sheet_maint.find(edit_m_id, in_column=1)
-                                    sheet_maint.update(values=[new_m_row], range_name=f"A{cell.row}:I{cell.row}")
-                                    st.cache_data.clear()
-                                    st.success(f"✅ 單號 {edit_m_id} 更新成功！請重新載入頁面。")
-
-    # ==========================================
+                    
+                    st.success(f"✅ 成功載入單號：{edit_m_id} (若不需修改照片請留空)")
+                    with st.form(f"edit_m_form_{edit_m_id}"):
+                        try: old_date = datetime.strptime(str(row_dict.get('Date', '')), "%Y-%m-%d").date()
+                        except: old_date = datetime.now(tz_tw).date()
+                        
+                        e_date = st.date_input("日期", value=old_date, key=f"em_date_{edit_m_id}")
+                        e_engineer = st.text_input("填單人員", value=str(row_dict.get('Engineer', '')), disabled=True, key=f"em_eng_{edit_m_id}")
+                        e_customer = st.text_input("客戶與廠區", value=str(row_dict.get('Customer', '')), key=f"em_cust_{edit_m_id}")
+                        
+                        mach_opts = ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"]
+                        old_mach = str(row_dict.get('Machine_Model', ''))
+                        m_idx = mach_opts.index(old_mach) if old_mach in mach_opts else None
+                        e_machine = st.selectbox("設備機型", mach_opts, index=m_idx, key=f"em_mach_{edit_m_id}")
+                        
+                        comp_options = ["預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"]
+                        old_comp = str(row_dict.get('Component', ''))
+                        c_idx = comp_options.index(old_comp) if old_comp in comp_options else None
+                        e_component = st.selectbox("異常部件", comp_options, index=c_idx, key=f"em_comp_{edit_m_id}")
+                        
+                        e_issue = st.text_area("問題描述", value=str(row_dict.get('Issue_Desc', '')), key=f"em_iss_{edit_m_id}")
+                        e_solution = st.text_area("解決方案", value=str(row_dict.get('Solution', '')), key=f"em_sol_{edit_m_id}")
+                        e_upload = st.file_uploader("🖼️ 更新現場照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"em_photo_{edit_m_id}")
+                        
+                        if st.form_submit_button("💾 覆蓋更新紀錄", key=f"btn_em_{edit_m_id}"):
+                            with st.spinner("更新雲端資料庫中..."):
+                                new_photo_url = upload_image(e_upload, f"{edit_m_id}_edit.jpg") if e_upload else str(row_dict.get('Photo_URL', ''))
+                                new_m_row = [
+                                    edit_m_id, e_date.strftime("%Y-%m-%d"), e_engineer, e_customer, 
+                                    e_machine, e_component, e_issue, e_solution, new_photo_url
+                                ]
+                                cell = sheet_maint.find(edit_m_id, in_column=1)
+                                sheet_maint.update(values=[new_m_row], range_name=f"A{cell.row}:I{cell.row}")
+                                st.cache_data.clear()
+                                st.success(f"✅ 單號 {edit_m_id} 更新成功！請重新載入頁面。")
+                                # ==========================================
     # 模式 B：DEMO 實驗紀錄
     # ==========================================
     elif app_mode == "🧪 DEMO 實驗紀錄":
@@ -417,6 +424,10 @@ else:
 
             filtered_demo = df_d.copy()
             if not filtered_demo.empty:
+                # 📌 新增年月產生邏輯
+                try: filtered_demo['YearMonth'] = pd.to_datetime(filtered_demo['Date']).dt.strftime('%y/%m')
+                except: filtered_demo['YearMonth'] = "未知時間"
+
                 if search_kw_demo:
                     mask = pd.Series(False, index=filtered_demo.index)
                     for col in filtered_demo.columns: mask = mask | filtered_demo[col].astype(str).str.contains(search_kw_demo, case=False, na=False)
@@ -424,53 +435,69 @@ else:
                 if filter_sub != "全部": filtered_demo = filtered_demo[filtered_demo['Substrate_Type'].astype(str) == filter_sub]
                 if filter_film != "全部": filtered_demo = filtered_demo[filtered_demo['Film_Material'].astype(str) == filter_film]
                 
+                st.write("---")
+                # 📌 導入與維修一樣的資料夾展開分類
+                group_by_demo = st.radio("🗂️ 選擇展開分類方式：", ["依建立年月", "依客戶名稱", "依測試機台"], horizontal=True)
+                group_col_demo_map = {"依建立年月": "YearMonth", "依客戶名稱": "Customer", "依測試機台": "Equipment"}
+                group_col_d = group_col_demo_map[group_by_demo]
+
                 st.caption(f"🔍 找到 {len(filtered_demo)} 筆實驗紀錄")
-                for index, row in filtered_demo.iterrows():
-                    photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
-                    equip_name = str(row.get('Equipment', ''))
-                    
-                    s_t = str(row.get('Substrate_Type', '')).strip()
-                    s_s = str(row.get('Substrate_Size', '')).strip()
-                    f_m = str(row.get('Film_Material', '')).strip()
-                    f_mod = str(row.get('Film_Model', '')).strip()
-                    sub_dict = {"板材類型": s_t, "基板尺寸": s_s, "膜材種類": f_m, "膜材型號 / 厚度": f_mod}
-                    html_sub = format_params_html(pack_params(sub_dict))
-                    
-                    html_pre = format_params_html(row.get('Pre_Lam', ''))
-                    html_l1 = format_params_html(row.get('Lam_1st', ''))
-                    html_l2 = format_params_html(row.get('Lam_2nd', ''))
-                    html_l3 = format_params_html(row.get('Lam_3rd', ''))
-                    
-                    blocks = []
-                    if "V-160" in equip_name.upper() or "V160" in equip_name.upper():
-                        if html_l1: blocks.append(f"<b>🔹 V-160 參數</b><br>{html_l1}")
-                    else:
-                        if html_pre: blocks.append(f"<b>🔹 預貼機參數</b><br>{html_pre}")
-                        if html_l1: blocks.append(f"<b>🔹 1st 壓模</b><br>{html_l1}")
-                        if html_l2: blocks.append(f"<b>🔹 2nd 壓模</b><br>{html_l2}")
-                        if html_l3: blocks.append(f"<b>🔹 3rd 壓模</b><br>{html_l3}")
-                    
-                    params_block = f"<div style='background-color:#F9F9F9; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px; color:#555;'>{'<br><br>'.join(blocks)}</div>" if blocks else ""
-                    sub_block = f"<div class='glide-subtitle'><b>基材/膜材</b><br>{html_sub}</div>" if html_sub else ""
+                
+                unique_groups_d = filtered_demo[group_col_d].unique().tolist()
+                if group_col_d == "YearMonth": unique_groups_d.sort(reverse=True) 
+                else: unique_groups_d.sort(key=lambda x: str(x))
 
-                    eval_result = str(row.get('Self_Eval', '未評估'))
-                    if not eval_result or eval_result == "nan": eval_result = "未評估"
+                for group_name in unique_groups_d:
+                    display_name = group_name if str(group_name).strip() != "" else "未分類/未填寫"
+                    group_data = filtered_demo[filtered_demo[group_col_d] == group_name]
+                    
+                    with st.expander(f"📁 {display_name} (共 {len(group_data)} 筆)"):
+                        for index, row in group_data.iterrows():
+                            photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
+                            equip_name = str(row.get('Equipment', ''))
+                            
+                            s_t = str(row.get('Substrate_Type', '')).strip()
+                            s_s = str(row.get('Substrate_Size', '')).strip()
+                            f_m = str(row.get('Film_Material', '')).strip()
+                            f_mod = str(row.get('Film_Model', '')).strip()
+                            sub_dict = {"板材類型": s_t, "基板尺寸": s_s, "膜材種類": f_m, "膜材型號 / 厚度": f_mod}
+                            html_sub = format_params_html(pack_params(sub_dict))
+                            
+                            html_pre = format_params_html(row.get('Pre_Lam', ''))
+                            html_l1 = format_params_html(row.get('Lam_1st', ''))
+                            html_l2 = format_params_html(row.get('Lam_2nd', ''))
+                            html_l3 = format_params_html(row.get('Lam_3rd', ''))
+                            
+                            blocks = []
+                            if "V-160" in equip_name.upper() or "V160" in equip_name.upper():
+                                if html_l1: blocks.append(f"<b>🔹 V-160 參數</b><br>{html_l1}")
+                            else:
+                                if html_pre: blocks.append(f"<b>🔹 預貼機參數</b><br>{html_pre}")
+                                if html_l1: blocks.append(f"<b>🔹 1st 壓模</b><br>{html_l1}")
+                                if html_l2: blocks.append(f"<b>🔹 2nd 壓模</b><br>{html_l2}")
+                                if html_l3: blocks.append(f"<b>🔹 3rd 壓模</b><br>{html_l3}")
+                            
+                            params_block = f"<div style='background-color:#F9F9F9; padding:10px; border-radius:8px; margin-bottom:10px; font-size:13px; color:#555;'>{'<br><br>'.join(blocks)}</div>" if blocks else ""
+                            sub_block = f"<div class='glide-subtitle'><b>基材/膜材</b><br>{html_sub}</div>" if html_sub else ""
 
-                    st.markdown(f"""
-    <div class="glide-card">
-    <div class="glide-title">🧪 測試機台: {equip_name if equip_name else '未填寫'} <span style="font-size:12px; color:#999;">(單號: {row.get('Log_ID', '')})</span></div>
-    <div class="glide-tag">📅 {row.get('Date', '')}</div>
-    <div class="glide-tag">🏢 {row.get('Customer', '')}</div>
-    <div class="glide-tag" style="background-color:#E3F2FD; color:#1565C0;">👤 操作: {row.get('Operator', '')}</div>
-    <div class="glide-tag">📦 數量: {row.get('Qty', '')}</div>
-    <div class="glide-tag" style="background-color: #E8F5E9; color: #2E7D32;">📊 自評: {eval_result}</div>
-    {sub_block}
-    {params_block}
-    <div class="glide-subtitle"><b>📝 備註與異常</b><br>{str(row.get('Remarks', '無')).replace('\n', '<br>')}</div>
-    <div class="glide-solution"><b>🗣️ 客戶反饋</b><br>{str(row.get('Feedback', '無')).replace('\n', '<br>')}</div>
-    {photo_html}
-    </div>
-    """, unsafe_allow_html=True)
+                            eval_result = str(row.get('Self_Eval', '未評估'))
+                            if not eval_result or eval_result == "nan": eval_result = "未評估"
+
+                            st.markdown(f"""
+            <div class="glide-card">
+            <div class="glide-title">🧪 測試機台: {equip_name if equip_name else '未填寫'} <span style="font-size:12px; color:#999;">(單號: {row.get('Log_ID', '')})</span></div>
+            <div class="glide-tag">📅 {row.get('Date', '')}</div>
+            <div class="glide-tag">🏢 {row.get('Customer', '')}</div>
+            <div class="glide-tag" style="background-color:#E3F2FD; color:#1565C0;">👤 操作: {row.get('Operator', '')}</div>
+            <div class="glide-tag">📦 數量: {row.get('Qty', '')}</div>
+            <div class="glide-tag" style="background-color: #E8F5E9; color: #2E7D32;">📊 自評: {eval_result}</div>
+            {sub_block}
+            {params_block}
+            <div class="glide-subtitle"><b>📝 備註與異常</b><br>{str(row.get('Remarks', '無')).replace('\n', '<br>')}</div>
+            <div class="glide-solution"><b>🗣️ 客戶反饋</b><br>{str(row.get('Feedback', '無')).replace('\n', '<br>')}</div>
+            {photo_html}
+            </div>
+            """, unsafe_allow_html=True)
             else:
                 st.info("目前還沒有 DEMO 實驗紀錄，趕快去新增一筆吧！")
 
@@ -629,140 +656,146 @@ else:
 
         with tab_d4:
             st.subheader("✏️ 修改我的實驗紀錄")
-            edit_d_id = st.text_input("🔍 請輸入要修改的實驗單號 (例如: DEMO-260326-1200)", key="edit_d_id")
+            # 📌 智慧下拉選單邏輯
+            if st.session_state.role == 'Admin':
+                my_df_d = df_d.copy()
+                st.info("👑 管理員模式：您可以看到並修改所有人的紀錄。")
+            else:
+                my_df_d = df_d[df_d['Operator'].astype(str).str.strip() == st.session_state.user_name]
             
-            if edit_d_id and not df_d.empty:
-                row_data = df_d[df_d['Log_ID'] == edit_d_id]
-                if row_data.empty:
-                    st.error("❌ 找不到此單號，請確認是否輸入正確。")
-                else:
+            if my_df_d.empty:
+                st.warning("您目前還沒有建立過任何實驗紀錄喔！")
+            else:
+                options_d = [""] + [f"{r['Log_ID']} (日期: {r['Date']} | 客戶: {r['Customer']} | 機台: {r['Equipment']})" for idx, r in my_df_d.iterrows()]
+                selected_d = st.selectbox("🔍 請選擇要修改的實驗單 (支援關鍵字搜尋)", options_d, key="select_edit_d")
+                
+                if selected_d:
+                    edit_d_id = selected_d.split(" (")[0]
+                    row_data = df_d[df_d['Log_ID'] == edit_d_id]
                     row_dict = row_data.iloc[0].to_dict()
-                    if str(row_dict.get('Operator', '')).strip() != st.session_state.user_name and st.session_state.role != 'Admin':
-                        st.error(f"⛔ 權限不足！此實驗單為 {row_dict.get('Operator', '他人')} 建立，您只能修改本人的紀錄。")
-                    else:
-                        st.success(f"✅ 成功載入實驗單號：{edit_d_id} (若不需修改照片請留空)")
-                        # 📌 綁定動態 Key edit_d_id
-                        with st.form(f"edit_d_form_{edit_d_id}"):
-                            try: old_date = datetime.strptime(str(row_dict.get('Date', '')), "%Y-%m-%d").date()
-                            except: old_date = datetime.now(tz_tw).date()
+                    
+                    st.success(f"✅ 成功載入實驗單號：{edit_d_id} (若不需修改照片請留空)")
+                    with st.form(f"edit_d_form_{edit_d_id}"):
+                        try: old_date = datetime.strptime(str(row_dict.get('Date', '')), "%Y-%m-%d").date()
+                        except: old_date = datetime.now(tz_tw).date()
+                        
+                        c1, c2 = st.columns(2)
+                        ed_date = st.date_input("測試日期", value=old_date, key=f"ed_date_{edit_d_id}")
+                        ed_customer = st.text_input("客戶名稱", value=str(row_dict.get('Customer', '')), key=f"ed_cust_{edit_d_id}")
+                        
+                        c3, c4 = st.columns(2)
+                        with c3: ed_operator = st.text_input("操作人", value=str(row_dict.get('Operator', '')), disabled=True, key=f"ed_oper_{edit_d_id}")
+                        with c4: ed_equip = st.text_input("設備類型", value=str(row_dict.get('Equipment', '')), key=f"ed_equip_{edit_d_id}")
+                        
+                        with st.expander("📍 修改：基材與膜材資訊", expanded=True):
+                            c_s1, c_s2 = st.columns(2)
                             
-                            c1, c2 = st.columns(2)
-                            ed_date = st.date_input("測試日期", value=old_date, key=f"ed_date_{edit_d_id}")
-                            ed_customer = st.text_input("客戶名稱", value=str(row_dict.get('Customer', '')), key=f"ed_cust_{edit_d_id}")
+                            old_st = str(row_dict.get('Substrate_Type', ''))
+                            st_opts = ["", "PCB", "Wafer", "Glass", "其他"]
+                            st_idx = st_opts.index(old_st) if old_st in st_opts else 4
+                            with c_s1: 
+                                ed_sub_t = st.selectbox("板材類型", st_opts, index=st_idx, key=f"ed_st_{edit_d_id}")
+                                ed_sub_t_other = st.text_input("自填板材", value=old_st if st_idx == 4 else "", label_visibility="collapsed", key=f"ed_sto_{edit_d_id}")
+                                ed_sub_size = st.text_input("基板尺寸與厚度", value=str(row_dict.get('Substrate_Size', '')), key=f"ed_sd_{edit_d_id}")
                             
-                            c3, c4 = st.columns(2)
-                            with c3: ed_operator = st.text_input("操作人", value=str(row_dict.get('Operator', '')), disabled=True, key=f"ed_oper_{edit_d_id}")
-                            with c4: ed_equip = st.text_input("設備類型", value=str(row_dict.get('Equipment', '')), key=f"ed_equip_{edit_d_id}")
-                            
-                            with st.expander("📍 修改：基材與膜材資訊", expanded=True):
-                                c_s1, c_s2 = st.columns(2)
+                            old_fm = str(row_dict.get('Film_Material', ''))
+                            fm_opts = ["", "ABF", "DAF", "NCF", "PI", "其他"]
+                            fm_idx = fm_opts.index(old_fm) if old_fm in fm_opts else 5
+                            with c_s2: 
+                                ed_film_m = st.selectbox("膜材種類", fm_opts, index=fm_idx, key=f"ed_fm_{edit_d_id}")
+                                ed_film_m_other = st.text_input("自填膜材", value=old_fm if fm_idx == 5 else "", label_visibility="collapsed", key=f"ed_fmo_{edit_d_id}")
+                                ed_film_model = st.text_input("膜材型號 / 厚度", value=str(row_dict.get('Film_Model', '')), key=f"ed_fmod_{edit_d_id}")
+                        
+                        st.write("---")
+                        
+                        is_v160 = "V-160" in str(row_dict.get('Equipment', '')).upper() or "V160" in str(row_dict.get('Equipment', '')).upper()
+                        
+                        if is_v160:
+                            v_defs = unpack_params(row_dict.get('Lam_1st', ''))
+                            with st.expander("📍 V-160 參數", expanded=True):
+                                c_v1, c_v2 = st.columns(2)
+                                v_modes = ["", "上", "下", "上下"]
+                                old_vmode = v_defs.get("加壓模式", "")
+                                vm_idx = v_modes.index(old_vmode) if old_vmode in v_modes else 0
+                                with c_v1: ed_v_mode = st.selectbox("加壓模式", v_modes, index=vm_idx, key=f"ed_vm_{edit_d_id}")
+                                with c_v2: ed_v_tv = st.text_input("下真空時間 (sec)", value=v_defs.get("下真空時間 (sec)", ""), key=f"ed_v_tv_{edit_d_id}")
                                 
-                                old_st = str(row_dict.get('Substrate_Type', ''))
-                                st_opts = ["", "PCB", "Wafer", "Glass", "其他"]
-                                st_idx = st_opts.index(old_st) if old_st in st_opts else 4
-                                with c_s1: 
-                                    ed_sub_t = st.selectbox("板材類型", st_opts, index=st_idx, key=f"ed_st_{edit_d_id}")
-                                    ed_sub_t_other = st.text_input("自填板材", value=old_st if st_idx == 4 else "", label_visibility="collapsed", key=f"ed_sto_{edit_d_id}")
-                                    ed_sub_size = st.text_input("基板尺寸與厚度", value=str(row_dict.get('Substrate_Size', '')), key=f"ed_sd_{edit_d_id}")
+                                c_v3, c_v4 = st.columns(2)
+                                with c_v3: ed_v_tt = st.text_input("上溫度 (℃)", value=v_defs.get("上溫度 (℃)", ""), key=f"ed_v_tt_{edit_d_id}")
+                                with c_v4: ed_v_tb = st.text_input("下溫度 (℃)", value=v_defs.get("下溫度 (℃)", ""), key=f"ed_v_tb_{edit_d_id}")
                                 
-                                old_fm = str(row_dict.get('Film_Material', ''))
-                                fm_opts = ["", "ABF", "DAF", "NCF", "PI", "其他"]
-                                fm_idx = fm_opts.index(old_fm) if old_fm in fm_opts else 5
-                                with c_s2: 
-                                    ed_film_m = st.selectbox("膜材種類", fm_opts, index=fm_idx, key=f"ed_fm_{edit_d_id}")
-                                    ed_film_m_other = st.text_input("自填膜材", value=old_fm if fm_idx == 5 else "", label_visibility="collapsed", key=f"ed_fmo_{edit_d_id}")
-                                    ed_film_model = st.text_input("膜材型號 / 厚度", value=str(row_dict.get('Film_Model', '')), key=f"ed_fmod_{edit_d_id}")
-                            
-                            st.write("---")
-                            
-                            is_v160 = "V-160" in str(row_dict.get('Equipment', '')).upper() or "V160" in str(row_dict.get('Equipment', '')).upper()
-                            
-                            if is_v160:
-                                v_defs = unpack_params(row_dict.get('Lam_1st', ''))
-                                with st.expander("📍 V-160 參數", expanded=True):
-                                    c_v1, c_v2 = st.columns(2)
-                                    v_modes = ["", "上", "下", "上下"]
-                                    old_vmode = v_defs.get("加壓模式", "")
-                                    vm_idx = v_modes.index(old_vmode) if old_vmode in v_modes else 0
-                                    with c_v1: ed_v_mode = st.selectbox("加壓模式", v_modes, index=vm_idx, key=f"ed_vm_{edit_d_id}")
-                                    with c_v2: ed_v_tv = st.text_input("下真空時間 (sec)", value=v_defs.get("下真空時間 (sec)", ""), key=f"ed_v_tv_{edit_d_id}")
+                                st.write("---")
+                                ed_v_tdrop_t = st.text_input("上硅膠墊垂落時間 (sec)", value=v_defs.get("上硅膠墊垂落時間 (sec)", ""), key=f"ed_v_tdt_{edit_d_id}")
+                                c_v5, c_v6 = st.columns(2)
+                                with c_v5: ed_v_pt = st.text_input("上氣囊加壓壓力 (kgf/cm²)", value=v_defs.get("上氣囊加壓壓力 (kgf/cm²)", ""), key=f"ed_v_pt_{edit_d_id}")
+                                with c_v6: ed_v_tpt = st.text_input("上氣囊加壓時間 (sec)", value=v_defs.get("上氣囊加壓時間 (sec)", ""), key=f"ed_v_tpt_{edit_d_id}")
+                                
+                                st.write("---")
+                                ed_v_dly_b = st.text_input("下加壓延遲時間 (sec)", value=v_defs.get("下加壓延遲時間 (sec)", ""), key=f"ed_v_db_{edit_d_id}")
+                                ed_v_tdrop_b = st.text_input("下硅膠墊垂落時間 (sec)", value=v_defs.get("下硅膠墊垂落時間 (sec)", ""), key=f"ed_v_tdb_{edit_d_id}")
+                                c_v7, c_v8 = st.columns(2)
+                                with c_v7: ed_v_pb = st.text_input("下加壓壓力 (kgf/cm²)", value=v_defs.get("下加壓壓力 (kgf/cm²)", ""), key=f"ed_v_pb_{edit_d_id}")
+                                with c_v8: ed_v_tpb = st.text_input("下加壓時間 (sec)", value=v_defs.get("下加壓時間 (sec)", ""), key=f"ed_v_tpb_{edit_d_id}")
+                        else:
+                            pre_defs = unpack_params(row_dict.get('Pre_Lam', ''))
+                            with st.expander("📍 預貼機參數", expanded=True):
+                                c_p1, c_p2 = st.columns(2)
+                                with c_p1: ed_pre_t = st.text_input("預貼溫度 (℃)", value=pre_defs.get("預貼溫度 (℃)", ""), key=f"ed_p_t_{edit_d_id}")
+                                with c_p2: ed_pre_s = st.text_input("預貼速度 (m/min)", value=pre_defs.get("預貼速度 (m/min)", ""), key=f"ed_p_s_{edit_d_id}")
+                                c_p3, c_p4 = st.columns(2)
+                                with c_p3: ed_pre_p = st.text_input("預貼壓力 (MPa)", value=pre_defs.get("預貼壓力 (MPa)", ""), key=f"ed_p_p_{edit_d_id}")
+                                with c_p4: ed_pre_m = st.text_input("前後留邊量 (前mm / 後mm)", value=pre_defs.get("前後留邊量", ""), key=f"ed_p_m_{edit_d_id}")
                                     
-                                    c_v3, c_v4 = st.columns(2)
-                                    with c_v3: ed_v_tt = st.text_input("上溫度 (℃)", value=v_defs.get("上溫度 (℃)", ""), key=f"ed_v_tt_{edit_d_id}")
-                                    with c_v4: ed_v_tb = st.text_input("下溫度 (℃)", value=v_defs.get("下溫度 (℃)", ""), key=f"ed_v_tb_{edit_d_id}")
-                                    
-                                    st.write("---")
-                                    ed_v_tdrop_t = st.text_input("上硅膠墊垂落時間 (sec)", value=v_defs.get("上硅膠墊垂落時間 (sec)", ""), key=f"ed_v_tdt_{edit_d_id}")
-                                    c_v5, c_v6 = st.columns(2)
-                                    with c_v5: ed_v_pt = st.text_input("上氣囊加壓壓力 (kgf/cm²)", value=v_defs.get("上氣囊加壓壓力 (kgf/cm²)", ""), key=f"ed_v_pt_{edit_d_id}")
-                                    with c_v6: ed_v_tpt = st.text_input("上氣囊加壓時間 (sec)", value=v_defs.get("上氣囊加壓時間 (sec)", ""), key=f"ed_v_tpt_{edit_d_id}")
-                                    
-                                    st.write("---")
-                                    ed_v_dly_b = st.text_input("下加壓延遲時間 (sec)", value=v_defs.get("下加壓延遲時間 (sec)", ""), key=f"ed_v_db_{edit_d_id}")
-                                    ed_v_tdrop_b = st.text_input("下硅膠墊垂落時間 (sec)", value=v_defs.get("下硅膠墊垂落時間 (sec)", ""), key=f"ed_v_tdb_{edit_d_id}")
-                                    c_v7, c_v8 = st.columns(2)
-                                    with c_v7: ed_v_pb = st.text_input("下加壓壓力 (kgf/cm²)", value=v_defs.get("下加壓壓力 (kgf/cm²)", ""), key=f"ed_v_pb_{edit_d_id}")
-                                    with c_v8: ed_v_tpb = st.text_input("下加壓時間 (sec)", value=v_defs.get("下加壓時間 (sec)", ""), key=f"ed_v_tpb_{edit_d_id}")
-                            else:
-                                pre_defs = unpack_params(row_dict.get('Pre_Lam', ''))
-                                with st.expander("📍 預貼機參數", expanded=True):
-                                    c_p1, c_p2 = st.columns(2)
-                                    with c_p1: ed_pre_t = st.text_input("預貼溫度 (℃)", value=pre_defs.get("預貼溫度 (℃)", ""), key=f"ed_p_t_{edit_d_id}")
-                                    with c_p2: ed_pre_s = st.text_input("預貼速度 (m/min)", value=pre_defs.get("預貼速度 (m/min)", ""), key=f"ed_p_s_{edit_d_id}")
-                                    c_p3, c_p4 = st.columns(2)
-                                    with c_p3: ed_pre_p = st.text_input("預貼壓力 (MPa)", value=pre_defs.get("預貼壓力 (MPa)", ""), key=f"ed_p_p_{edit_d_id}")
-                                    with c_p4: ed_pre_m = st.text_input("前後留邊量 (前mm / 後mm)", value=pre_defs.get("前後留邊量", ""), key=f"ed_p_m_{edit_d_id}")
-                                        
-                                ed_l1_dict = render_lam_inputs("1st 壓模機", "el1", edit_d_id, unpack_params(row_dict.get('Lam_1st', '')))
-                                ed_l2_dict = render_lam_inputs("2nd 壓模機", "el2", edit_d_id, unpack_params(row_dict.get('Lam_2nd', '')))
-                                ed_l3_dict = render_lam3_inputs("3rd 壓模機", "el3", edit_d_id, unpack_params(row_dict.get('Lam_3rd', '')))
-                            
-                            st.write("---")
-                            
-                            c_q1, c_q2 = st.columns(2)
-                            with c_q1: ed_qty = st.text_input("壓合數量 (片/次)", value=str(row_dict.get('Qty', '')), key=f"ed_qty_{edit_d_id}")
-                            
-                            eval_opts = ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"]
-                            old_eval = str(row_dict.get('Self_Eval', ''))
-                            e_idx = eval_opts.index(old_eval) if old_eval in eval_opts else 0
-                            with c_q2: ed_eval = st.selectbox("內部自評結果", eval_opts, index=e_idx, key=f"ed_eval_{edit_d_id}")
-                            
-                            ed_remark = st.text_area("備註 (測試變動說明、具體異常)", value=str(row_dict.get('Remarks', '')), key=f"ed_rmk_{edit_d_id}")
-                            ed_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", value=str(row_dict.get('Feedback', '')), key=f"ed_fb_{edit_d_id}")
-                            ed_upload = st.file_uploader("🖼️ 更新測試照片 (選填，若無上傳將保留舊照片)", type=['jpg', 'png', 'jpeg'], key=f"ed_photo_{edit_d_id}")
-                            
-                            if st.form_submit_button("💾 覆蓋更新實驗紀錄", key=f"btn_ed_{edit_d_id}"):
-                                with st.spinner("打包與更新雲端資料庫中..."):
-                                    new_photo_url = upload_image(ed_upload, f"{edit_d_id}_edit.jpg") if ed_upload else str(row_dict.get('Photo_URL', ''))
-                                    
-                                    final_ed_sub_t = ed_sub_t_other if ed_sub_t == "其他" else ed_sub_t
-                                    final_ed_film_m = ed_film_m_other if ed_film_m == "其他" else ed_film_m
-                                    
-                                    if is_v160:
-                                        new_v_dict = {
-                                            "加壓模式": ed_v_mode, "下真空時間 (sec)": ed_v_tv, "上溫度 (℃)": ed_v_tt, "下溫度 (℃)": ed_v_tb,
-                                            "上硅膠墊垂落時間 (sec)": ed_v_tdrop_t, "上氣囊加壓壓力 (kgf/cm²)": ed_v_pt, "上氣囊加壓時間 (sec)": ed_v_tpt,
-                                            "下加壓延遲時間 (sec)": ed_v_dly_b, "下硅膠墊垂落時間 (sec)": ed_v_tdrop_b,
-                                            "下加壓壓力 (kgf/cm²)": ed_v_pb, "下加壓時間 (sec)": ed_v_tpb
-                                        }
-                                        final_pre, final_l1, final_l2, final_l3 = "無", pack_params(new_v_dict), "無", "無"
-                                    else:
-                                        final_pre = pack_params({"預貼溫度 (℃)": ed_pre_t, "預貼壓力 (MPa)": ed_pre_p, "預貼速度 (m/min)": ed_pre_s, "前後留邊量": ed_pre_m})
-                                        final_l1 = pack_params(ed_l1_dict)
-                                        final_l2 = pack_params(ed_l2_dict)
-                                        final_l3 = pack_params(ed_l3_dict)
+                            ed_l1_dict = render_lam_inputs("1st 壓模機", "el1", edit_d_id, unpack_params(row_dict.get('Lam_1st', '')))
+                            ed_l2_dict = render_lam_inputs("2nd 壓模機", "el2", edit_d_id, unpack_params(row_dict.get('Lam_2nd', '')))
+                            ed_l3_dict = render_lam3_inputs("3rd 壓模機", "el3", edit_d_id, unpack_params(row_dict.get('Lam_3rd', '')))
+                        
+                        st.write("---")
+                        
+                        c_q1, c_q2 = st.columns(2)
+                        with c_q1: ed_qty = st.text_input("壓合數量 (片/次)", value=str(row_dict.get('Qty', '')), key=f"ed_qty_{edit_d_id}")
+                        
+                        eval_opts = ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"]
+                        old_eval = str(row_dict.get('Self_Eval', ''))
+                        e_idx = eval_opts.index(old_eval) if old_eval in eval_opts else 0
+                        with c_q2: ed_eval = st.selectbox("內部自評結果", eval_opts, index=e_idx, key=f"ed_eval_{edit_d_id}")
+                        
+                        ed_remark = st.text_area("備註 (測試變動說明、具體異常)", value=str(row_dict.get('Remarks', '')), key=f"ed_rmk_{edit_d_id}")
+                        ed_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", value=str(row_dict.get('Feedback', '')), key=f"ed_fb_{edit_d_id}")
+                        ed_upload = st.file_uploader("🖼️ 更新測試照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"ed_photo_{edit_d_id}")
+                        
+                        if st.form_submit_button("💾 覆蓋更新實驗紀錄", key=f"btn_ed_{edit_d_id}"):
+                            with st.spinner("打包與更新雲端資料庫中..."):
+                                new_photo_url = upload_image(ed_upload, f"{edit_d_id}_edit.jpg") if ed_upload else str(row_dict.get('Photo_URL', ''))
+                                
+                                final_ed_sub_t = ed_sub_t_other if ed_sub_t == "其他" else ed_sub_t
+                                final_ed_film_m = ed_film_m_other if ed_film_m == "其他" else ed_film_m
+                                
+                                if is_v160:
+                                    new_v_dict = {
+                                        "加壓模式": ed_v_mode, "下真空時間 (sec)": ed_v_tv, "上溫度 (℃)": ed_v_tt, "下溫度 (℃)": ed_v_tb,
+                                        "上硅膠墊垂落時間 (sec)": ed_v_tdrop_t, "上氣囊加壓壓力 (kgf/cm²)": ed_v_pt, "上氣囊加壓時間 (sec)": ed_v_tpt,
+                                        "下加壓延遲時間 (sec)": ed_v_dly_b, "下硅膠墊垂落時間 (sec)": ed_v_tdrop_b,
+                                        "下加壓壓力 (kgf/cm²)": ed_v_pb, "下加壓時間 (sec)": ed_v_tpb
+                                    }
+                                    final_pre, final_l1, final_l2, final_l3 = "無", pack_params(new_v_dict), "無", "無"
+                                else:
+                                    final_pre = pack_params({"預貼溫度 (℃)": ed_pre_t, "預貼壓力 (MPa)": ed_pre_p, "預貼速度 (m/min)": ed_pre_s, "前後留邊量": ed_pre_m})
+                                    final_l1 = pack_params(ed_l1_dict)
+                                    final_l2 = pack_params(ed_l2_dict)
+                                    final_l3 = pack_params(ed_l3_dict)
 
-                                    new_d_row = [
-                                        edit_d_id, ed_date.strftime("%Y-%m-%d"), ed_operator, 
-                                        ed_customer, ed_equip, 
-                                        final_ed_sub_t, ed_sub_size, final_ed_film_m, ed_film_model, 
-                                        final_pre, final_l1, final_l2, final_l3, 
-                                        ed_qty, ed_eval, ed_remark, ed_feedback, new_photo_url
-                                    ]
-                                    cell = sheet_demo.find(edit_d_id, in_column=1)
-                                    sheet_demo.update(values=[new_d_row], range_name=f"A{cell.row}:R{cell.row}")
-                                    st.cache_data.clear()
-                                    st.success(f"✅ 實驗單號 {edit_d_id} 更新成功！請重新載入頁面。")
+                                new_d_row = [
+                                    edit_d_id, ed_date.strftime("%Y-%m-%d"), ed_operator, 
+                                    ed_customer, ed_equip, 
+                                    final_ed_sub_t, ed_sub_size, final_ed_film_m, ed_film_model, 
+                                    final_pre, final_l1, final_l2, final_l3, 
+                                    ed_qty, ed_eval, ed_remark, ed_feedback, new_photo_url
+                                ]
+                                cell = sheet_demo.find(edit_d_id, in_column=1)
+                                sheet_demo.update(values=[new_d_row], range_name=f"A{cell.row}:R{cell.row}")
+                                st.cache_data.clear()
+                                st.success(f"✅ 實驗單號 {edit_d_id} 更新成功！請重新載入頁面。")
 
     # ==========================================
     # 模式 C：全新「產品厚度計算機」
