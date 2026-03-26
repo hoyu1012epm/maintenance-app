@@ -210,7 +210,6 @@ else:
         st.success(f"👤 歡迎登入，{st.session_state.user_name}！")
         st.markdown("### 🎛️ 系統模式切換")
         
-        # 📌 動態選單設定：依據權限決定是否顯示管理員後台
         sys_options = ["🔧 現場維修系統", "🧪 DEMO 實驗紀錄", "🧮 產品厚度計算機"]
         if st.session_state.role == 'Admin':
             sys_options.append("👑 管理員後台")
@@ -241,7 +240,8 @@ else:
             except: st.title("⚙️") 
         with col2:
             st.markdown(f"<h1 style='margin-top: -15px;'>{'設備維修知識庫' if app_mode == '🔧 現場維修系統' else 'DEMO 實驗資料庫'}</h1>", unsafe_allow_html=True)
-            # ==========================================
+
+    # ==========================================
     # 模式 A：現場維修系統
     # ==========================================
     if app_mode == "🔧 現場維修系統":
@@ -403,8 +403,7 @@ else:
                                 sheet_maint.update(values=[new_m_row], range_name=f"A{cell.row}:I{cell.row}")
                                 st.cache_data.clear()
                                 edit_m_msg.success(f"✅ 單號 {edit_m_id} 更新成功！")
-
-    # ==========================================
+                                # ==========================================
     # 模式 B：DEMO 實驗紀錄
     # ==========================================
     elif app_mode == "🧪 DEMO 實驗紀錄":
@@ -539,7 +538,7 @@ else:
                 with c_q1: input_d_qty = st.text_input("壓合數量 (片/次)", key=f"d_qty_{fk}")
                 with c_q2: input_d_eval = st.selectbox("內部自評結果", ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"], key=f"d_eval_{fk}")
                 
-                input_d_remark = text_area("備註 (測試變動說明、具體異常)", key=f"d_rmk_{fk}")
+                input_d_remark = st.text_area("備註 (測試變動說明、具體異常)", key=f"d_rmk_{fk}")
                 input_d_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", key=f"d_fb_{fk}")
                 upload_d_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"d_photo_{fk}")
                 
@@ -590,7 +589,7 @@ else:
                         input_v_sub_size = st.text_input("基板尺寸與厚度", key=f"v_s_d_{fk}")
                     with c_vs2: 
                         input_v_film_m = st.selectbox("膜材種類", ["", "ABF", "DAF", "NCF", "PI", "其他"], key=f"v_f_m_{fk}")
-                        input_v_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"v_f_mo_{fk}")
+                        input_v_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"f_mo_{fk}")
                         input_v_film_model = st.text_input("膜材型號 / 厚度", key=f"v_f_mod_{fk}")
                 
                 st.write("---")
@@ -772,7 +771,7 @@ else:
                                 
                                 if is_v160:
                                     new_v_dict = {
-                                        "加壓模式": ed_v_mode, "下真空時間 (sec)": ed_v_tv, "上溫度 (℃)": ed_v_tt, "下溫度 (℃)": ed_v_tb,
+                                        "加壓模式": ed_v_mode, "下真空時間 (sec)": v_tv, "上溫度 (℃)": ed_v_tt, "下溫度 (℃)": ed_v_tb,
                                         "上硅膠墊垂落時間 (sec)": ed_v_tdrop_t, "上氣囊加壓壓力 (kgf/cm²)": ed_v_pt, "上氣囊加壓時間 (sec)": ed_v_tpt,
                                         "下加壓延遲時間 (sec)": ed_v_dly_b, "下硅膠墊垂落時間 (sec)": ed_v_tdrop_b,
                                         "下加壓壓力 (kgf/cm²)": ed_v_pb, "下加壓時間 (sec)": ed_v_tpb
@@ -839,11 +838,6 @@ else:
         st.markdown("## 👑 管理員專屬後台")
         st.info("💡 歡迎進入系統核心控制台！您可以在此總覽所有帳號狀態、新增實驗室同仁，或協助忘記密碼的人員重置密碼。")
         
-        # 📌 完美修復：把成功提示詞的「接收器」加進管理員後台！
-        if st.session_state.success_msg:
-            st.success(st.session_state.success_msg)
-            st.session_state.success_msg = ""
-            
         users_df = load_data("users")
         
         tab_a1, tab_a2, tab_a3, tab_a4 = st.tabs(["👥 帳號總覽", "➕ 新增人員", "🔄 重置密碼", "❌ 刪除帳號"])
@@ -857,7 +851,6 @@ else:
                     st.cache_data.clear()
                     st.rerun()
                     
-            # 隱藏密碼亂碼欄位，讓畫面乾淨
             display_df = users_df[['EPM_ID', 'Name', 'Role', 'Is_First_Login']].copy()
             display_df.columns = ['工號 (EPM_ID)', '姓名', '權限等級', '是否為首次登入 (需改密碼)']
             st.dataframe(display_df, use_container_width=True, hide_index=True)
@@ -883,8 +876,7 @@ else:
                             default_hash = hash_pw("123")
                             sheet_users.append_row([str(new_id), str(new_name), default_hash, new_role, "TRUE"])
                             st.cache_data.clear()
-                            st.session_state.success_msg = f"✅ 成功新增人員：{new_name}！請請他用預設密碼 123 登入。"
-                            st.rerun()
+                            admin_add_msg.success(f"✅ 成功新增人員：{new_name}！請請他用預設密碼 123 登入。")
                             
         with tab_a3:
             st.subheader("協助人員重置密碼")
@@ -902,8 +894,7 @@ else:
                         sheet_users.update_cell(cell.row, 3, hash_pw("123"))
                         sheet_users.update_cell(cell.row, 5, "TRUE")
                         st.cache_data.clear()
-                        st.session_state.success_msg = f"✅ 成功將 {target_name} ({target_id}) 的密碼重置為 123！下次登入將強制修改。"
-                        st.rerun()
+                        admin_reset_msg.success(f"✅ 成功將 {target_name} ({target_id}) 的密碼重置為 123！下次登入將強制修改。")
 
         with tab_a4:
             st.subheader("刪除系統帳號")
@@ -925,5 +916,4 @@ else:
                             cell = sheet_users.find(target_id, in_column=1)
                             sheet_users.delete_rows(cell.row)
                             st.cache_data.clear()
-                            st.session_state.success_msg = f"✅ 已成功永久刪除 {target_name} ({target_id}) 的系統帳號。"
-                            st.rerun()
+                            admin_del_msg.success(f"✅ 已成功永久刪除 {target_name} ({target_id}) 的系統帳號。")
