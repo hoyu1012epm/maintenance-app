@@ -21,8 +21,6 @@ if "logged_in" not in st.session_state:
     st.session_state.must_change_pw = False
 if "form_key" not in st.session_state:
     st.session_state.form_key = 0
-if "success_msg" not in st.session_state:
-    st.session_state.success_msg = ""
 
 # 📌 你的 Google Apps Script 專屬接收站網址
 GAS_URL = "https://script.google.com/macros/s/AKfycbxEVcNlZjjFEmkQmH8Ft-P8mVTSQllsfFF0Khf4YE8lmuOvRQBU8lzocmFs04oMm6g5/exec"
@@ -155,8 +153,8 @@ if not st.session_state.logged_in:
     st.markdown("<p style='text-align: center; color: #666;'>請輸入您的工號與密碼以登入系統</p>", unsafe_allow_html=True)
     
     with st.form("login_form"):
-        # 📌 移除 placeholder 範例
-        emp_id = st.text_input("工號 (EPM_ID)")
+        # 📌 完美修正：工號 (EPM ID) 並移除範例
+        emp_id = st.text_input("工號 (EPM ID)")
         password = st.text_input("密碼", type="password")
         submitted = st.form_submit_button("登入", use_container_width=True)
         
@@ -238,11 +236,6 @@ else:
             except: st.title("⚙️") 
         with col2:
             st.markdown(f"<h1 style='margin-top: -15px;'>{'設備維修知識庫' if app_mode == '🔧 現場維修系統' else 'DEMO 實驗資料庫'}</h1>", unsafe_allow_html=True)
-            
-        # 📌 成功訊息置頂顯示，保證不漏接！
-        if st.session_state.success_msg:
-            st.success(st.session_state.success_msg)
-            st.session_state.success_msg = ""
 
     # ==========================================
     # 模式 A：現場維修系統
@@ -301,7 +294,8 @@ else:
 
         with tab2:
             fk = st.session_state.form_key
-            with st.form(f"maint_form_{fk}"):
+            # 📌 加入 clear_on_submit=True 魔法，讓表單送出後自動清空
+            with st.form(f"maint_form_{fk}", clear_on_submit=True):
                 st.subheader("📝 填寫維修紀錄")
                 comp_options = ["預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"]
                 
@@ -314,18 +308,19 @@ else:
                 input_solution = st.text_area("解決方案", key=f"m_sol_{fk}")
                 upload_file = st.file_uploader("🖼️ 附加現場照片", type=['jpg', 'png', 'jpeg'], key=f"m_photo_{fk}")
                 
+                st.write("---")
+                # 📌 專屬成功訊息暫存區，放在按鈕正上方
+                maint_msg = st.empty()
                 if st.form_submit_button("送出維修紀錄", key=f"btn_m_{fk}"):
                     if not all([input_customer, input_machine, input_component, input_issue, input_solution]):
-                        st.error("⚠️ 請確認所有必填欄位都已填寫！")
+                        maint_msg.error("⚠️ 請確認所有必填欄位都已填寫！")
                     else:
                         with st.spinner("寫入中..."):
                             log_id = datetime.now(tz_tw).strftime("REP-%y%m%d-%H%M")
                             photo_url = upload_image(upload_file, f"{log_id}.jpg") if upload_file else ""
                             sheet_maint.append_row([log_id, input_date.strftime("%Y-%m-%d"), input_engineer, input_customer, input_machine, input_component, input_issue, input_solution, photo_url])
                             st.cache_data.clear()
-                            st.session_state.success_msg = f"✅ 成功寫入資料庫！單號：{log_id}"
-                            st.session_state.form_key += 1
-                            st.rerun()
+                            maint_msg.success(f"✅ 成功寫入資料庫！單號：{log_id}")
 
         with tab3:
             st.subheader("📈 維修數據統計看板")
@@ -393,6 +388,8 @@ else:
                         e_solution = st.text_area("解決方案", value=str(row_dict.get('Solution', '')), key=f"em_sol_{edit_m_id}")
                         e_upload = st.file_uploader("🖼️ 更新現場照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"em_photo_{edit_m_id}")
                         
+                        st.write("---")
+                        edit_m_msg = st.empty()
                         if st.form_submit_button("💾 覆蓋更新紀錄", key=f"btn_em_{edit_m_id}"):
                             with st.spinner("更新雲端資料庫中..."):
                                 new_photo_url = upload_image(e_upload, f"{edit_m_id}_edit.jpg") if e_upload else str(row_dict.get('Photo_URL', ''))
@@ -403,8 +400,7 @@ else:
                                 cell = sheet_maint.find(edit_m_id, in_column=1)
                                 sheet_maint.update(values=[new_m_row], range_name=f"A{cell.row}:I{cell.row}")
                                 st.cache_data.clear()
-                                st.session_state.success_msg = f"✅ 單號 {edit_m_id} 更新成功！"
-                                st.rerun()
+                                edit_m_msg.success(f"✅ 單號 {edit_m_id} 更新成功！")
                                 # ==========================================
     # 模式 B：DEMO 實驗紀錄
     # ==========================================
@@ -502,7 +498,8 @@ else:
 
         with tab_d2:
             fk = st.session_state.form_key
-            with st.form(f"demo_form_{fk}"):
+            # 📌 加入 clear_on_submit=True，讓表單保留在原地並清空
+            with st.form(f"demo_form_{fk}", clear_on_submit=True):
                 st.subheader("🧪 填寫實驗紀錄 (NT+CVP)")
                 c1, c2 = st.columns(2)
                 with c1: input_d_date = st.date_input("測試日期", datetime.now(tz_tw).date(), key=f"d_date_{fk}")
@@ -544,9 +541,12 @@ else:
                 input_d_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", key=f"d_fb_{fk}")
                 upload_d_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"d_photo_{fk}")
                 
+                st.write("---")
+                # 📌 成功訊息置於按鈕正上方
+                demo_msg = st.empty()
                 if st.form_submit_button("送出實驗紀錄", key=f"btn_d_{fk}"):
                     if not all([input_d_customer, input_d_equip]):
-                        st.error("⚠️ 請至少填寫客戶名稱與設備類型！")
+                        demo_msg.error("⚠️ 請至少填寫客戶名稱與設備類型！")
                     else:
                         with st.spinner("打包參數並寫入雲端中..."):
                             final_d_sub_t = input_d_sub_t_other if input_d_sub_t == "其他" else input_d_sub_t
@@ -568,13 +568,11 @@ else:
                             ]
                             sheet_demo.append_row(new_demo_row)
                             st.cache_data.clear()
-                            st.session_state.success_msg = f"✅ 成功寫入 DEMO 紀錄！單號：{log_id}"
-                            st.session_state.form_key += 1
-                            st.rerun()
+                            demo_msg.success(f"✅ 成功寫入 DEMO 紀錄！單號：{log_id}")
 
         with tab_d3:
             fk = st.session_state.form_key
-            with st.form(f"v160_form_{fk}"):
+            with st.form(f"v160_form_{fk}", clear_on_submit=True):
                 st.subheader("🧪 填寫實驗紀錄 (V-160)")
                 c1, c2 = st.columns(2)
                 with c1: input_v_date = st.date_input("測試日期", datetime.now(tz_tw).date(), key=f"v_date_{fk}")
@@ -623,9 +621,11 @@ else:
                 input_v_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", key=f"v_fb_{fk}")
                 upload_v_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"v_photo_{fk}")
                 
+                st.write("---")
+                v160_msg = st.empty()
                 if st.form_submit_button("送出實驗紀錄", key=f"btn_v_{fk}"):
                     if not all([input_v_customer]):
-                        st.error("⚠️ 請至少填寫客戶名稱！")
+                        v160_msg.error("⚠️ 請至少填寫客戶名稱！")
                     else:
                         with st.spinner("打包 V-160 參數並寫入雲端中..."):
                             final_v_sub_t = input_v_sub_t_other if input_v_sub_t == "其他" else input_v_sub_t
@@ -649,9 +649,7 @@ else:
                             ]
                             sheet_demo.append_row(new_v160_row)
                             st.cache_data.clear()
-                            st.session_state.success_msg = f"✅ 成功寫入 V-160 紀錄！單號：{log_id}"
-                            st.session_state.form_key += 1
-                            st.rerun()
+                            v160_msg.success(f"✅ 成功寫入 V-160 紀錄！單號：{log_id}")
 
         with tab_d4:
             st.subheader("✏️ 修改我的實驗紀錄")
@@ -762,6 +760,8 @@ else:
                         ed_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", value=str(row_dict.get('Feedback', '')), key=f"ed_fb_{edit_d_id}")
                         ed_upload = st.file_uploader("🖼️ 更新測試照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"ed_photo_{edit_d_id}")
                         
+                        st.write("---")
+                        edit_d_msg = st.empty()
                         if st.form_submit_button("💾 覆蓋更新實驗紀錄", key=f"btn_ed_{edit_d_id}"):
                             with st.spinner("打包與更新雲端資料庫中..."):
                                 new_photo_url = upload_image(ed_upload, f"{edit_d_id}_edit.jpg") if ed_upload else str(row_dict.get('Photo_URL', ''))
@@ -773,7 +773,7 @@ else:
                                     new_v_dict = {
                                         "加壓模式": ed_v_mode, "下真空時間 (sec)": ed_v_tv, "上溫度 (℃)": ed_v_tt, "下溫度 (℃)": ed_v_tb,
                                         "上硅膠墊垂落時間 (sec)": ed_v_tdrop_t, "上氣囊加壓壓力 (kgf/cm²)": ed_v_pt, "上氣囊加壓時間 (sec)": ed_v_tpt,
-                                        "下加壓延遲時間 (sec)": ed_v_dly_b, "下硅膠墊垂落時間 (sec)": ed_v_tdrop_b,
+                                        "下加壓延遲時間 (sec)": v_dly_b, "下硅膠墊垂落時間 (sec)": ed_v_tdrop_b,
                                         "下加壓壓力 (kgf/cm²)": ed_v_pb, "下加壓時間 (sec)": ed_v_tpb
                                     }
                                     final_pre, final_l1, final_l2, final_l3 = "無", pack_params(new_v_dict), "無", "無"
@@ -793,8 +793,7 @@ else:
                                 cell = sheet_demo.find(edit_d_id, in_column=1)
                                 sheet_demo.update(values=[new_d_row], range_name=f"A{cell.row}:R{cell.row}")
                                 st.cache_data.clear()
-                                st.session_state.success_msg = f"✅ 實驗單號 {edit_d_id} 更新成功！"
-                                st.rerun()
+                                edit_d_msg.success(f"✅ 實驗單號 {edit_d_id} 更新成功！")
 
     # ==========================================
     # 模式 C：全新「產品厚度計算機」
