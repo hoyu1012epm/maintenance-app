@@ -21,6 +21,8 @@ if "logged_in" not in st.session_state:
     st.session_state.must_change_pw = False
 if "form_key" not in st.session_state:
     st.session_state.form_key = 0
+if "success_msg" not in st.session_state:
+    st.session_state.success_msg = ""
 
 # 📌 你的 Google Apps Script 專屬接收站網址
 GAS_URL = "https://script.google.com/macros/s/AKfycbxEVcNlZjjFEmkQmH8Ft-P8mVTSQllsfFF0Khf4YE8lmuOvRQBU8lzocmFs04oMm6g5/exec"
@@ -240,6 +242,11 @@ else:
             except: st.title("⚙️") 
         with col2:
             st.markdown(f"<h1 style='margin-top: -15px;'>{'設備維修知識庫' if app_mode == '🔧 現場維修系統' else 'DEMO 實驗資料庫'}</h1>", unsafe_allow_html=True)
+            
+        # 📌 成功訊息置頂顯示 (只針對修改表單)
+        if st.session_state.success_msg:
+            st.success(st.session_state.success_msg)
+            st.session_state.success_msg = ""
 
     # ==========================================
     # 模式 A：現場維修系統
@@ -403,7 +410,8 @@ else:
                                 sheet_maint.update(values=[new_m_row], range_name=f"A{cell.row}:I{cell.row}")
                                 st.cache_data.clear()
                                 edit_m_msg.success(f"✅ 單號 {edit_m_id} 更新成功！")
-                                # ==========================================
+
+    # ==========================================
     # 模式 B：DEMO 實驗紀錄
     # ==========================================
     elif app_mode == "🧪 DEMO 實驗紀錄":
@@ -589,7 +597,7 @@ else:
                         input_v_sub_size = st.text_input("基板尺寸與厚度", key=f"v_s_d_{fk}")
                     with c_vs2: 
                         input_v_film_m = st.selectbox("膜材種類", ["", "ABF", "DAF", "NCF", "PI", "其他"], key=f"v_f_m_{fk}")
-                        input_v_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"f_mo_{fk}")
+                        input_v_film_m_other = st.text_input("自填膜材", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"v_f_mo_{fk}")
                         input_v_film_model = st.text_input("膜材型號 / 厚度", key=f"v_f_mod_{fk}")
                 
                 st.write("---")
@@ -771,7 +779,7 @@ else:
                                 
                                 if is_v160:
                                     new_v_dict = {
-                                        "加壓模式": ed_v_mode, "下真空時間 (sec)": v_tv, "上溫度 (℃)": ed_v_tt, "下溫度 (℃)": ed_v_tb,
+                                        "加壓模式": ed_v_mode, "下真空時間 (sec)": ed_v_tv, "上溫度 (℃)": ed_v_tt, "下溫度 (℃)": ed_v_tb,
                                         "上硅膠墊垂落時間 (sec)": ed_v_tdrop_t, "上氣囊加壓壓力 (kgf/cm²)": ed_v_pt, "上氣囊加壓時間 (sec)": ed_v_tpt,
                                         "下加壓延遲時間 (sec)": ed_v_dly_b, "下硅膠墊垂落時間 (sec)": ed_v_tdrop_b,
                                         "下加壓壓力 (kgf/cm²)": ed_v_pb, "下加壓時間 (sec)": ed_v_tpb
@@ -843,11 +851,11 @@ else:
         tab_a1, tab_a2, tab_a3, tab_a4 = st.tabs(["👥 帳號總覽", "➕ 新增人員", "🔄 重置密碼", "❌ 刪除帳號"])
         
         with tab_a1:
-            c_header, c_btn = st.columns([4, 1])
+            c_header, c_btn = st.columns([3, 1])
             with c_header:
                 st.subheader("目前系統帳號清單")
             with c_btn:
-                if st.button("🔄 重新整理清單", use_container_width=True):
+                if st.button("🔄 重新整理", use_container_width=True):
                     st.cache_data.clear()
                     st.rerun()
                     
@@ -876,11 +884,11 @@ else:
                             default_hash = hash_pw("123")
                             sheet_users.append_row([str(new_id), str(new_name), default_hash, new_role, "TRUE"])
                             st.cache_data.clear()
-                            admin_add_msg.success(f"✅ 成功新增人員：{new_name}！請他用預設密碼 123 登入。")
+                            admin_add_msg.success(f"✅ 成功新增人員：{new_name}！請請他用預設密碼 123 登入。")
                             
         with tab_a3:
             st.subheader("協助人員重置密碼")
-            with st.form("reset_pw_form"):
+            with st.form("reset_pw_form", clear_on_submit=True):
                 reset_opts = [f"{r['EPM_ID']} - {r['Name']}" for idx, r in users_df.iterrows()]
                 reset_target = st.selectbox("🔍 請選擇要重置密碼的人員", reset_opts)
                 
@@ -899,7 +907,7 @@ else:
         with tab_a4:
             st.subheader("刪除系統帳號")
             st.warning("⚠️ 注意：刪除帳號後，該人員將無法再登入系統，但其過去填寫的歷史紀錄仍會保留在資料庫中。")
-            with st.form("del_user_form"):
+            with st.form("del_user_form", clear_on_submit=True):
                 del_opts = [f"{r['EPM_ID']} - {r['Name']}" for idx, r in users_df.iterrows()]
                 del_target = st.selectbox("🗑️ 請選擇要刪除的人員", del_opts)
                 
