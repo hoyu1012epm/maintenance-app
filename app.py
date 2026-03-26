@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import requests
 import base64
 import plotly.express as px
-import hashlib # 📌 導入密碼加密套件
+import hashlib 
 
 # 設定台灣時區 (UTC+8)
 tz_tw = timezone(timedelta(hours=8))
@@ -51,7 +51,7 @@ def format_params_html(raw_text):
         valid_lines.append(line)
     return "<br>".join(valid_lines) if valid_lines else ""
 
-# 📌 壓模機輸入 UI (共用)
+# 📌 壓模機輸入 UI (新增模式共用)
 def render_lam_inputs(stage_name, key_prefix, fk):
     with st.expander(f"📍 {stage_name} 參數"):
         c1, c2 = st.columns(2)
@@ -95,7 +95,7 @@ def init_connection():
     gc = gspread.authorize(creds)
     sheet_maint = gc.open("設備維修知識庫").worksheet("維修紀錄")
     sheet_demo = gc.open("設備維修知識庫").worksheet("實驗參數")
-    sheet_users = gc.open("設備維修知識庫").worksheet("使用者帳號") # 📌 新增帳號資料庫
+    sheet_users = gc.open("設備維修知識庫").worksheet("使用者帳號")
     return sheet_maint, sheet_demo, sheet_users
 
 sheet_maint, sheet_demo, sheet_users = init_connection()
@@ -160,7 +160,6 @@ if not st.session_state.logged_in:
                         st.session_state.user_name = str(user_record.iloc[0]['Name'])
                         st.session_state.role = str(user_record.iloc[0]['Role'])
                         
-                        # 檢查是否為首次登入
                         if str(user_record.iloc[0]['Is_First_Login']).upper() == 'TRUE':
                             st.session_state.must_change_pw = True
                         st.rerun()
@@ -181,9 +180,7 @@ elif st.session_state.must_change_pw:
                 st.error("⚠️ 兩次密碼輸入不一致，請重新檢查！")
             else:
                 with st.spinner("密碼加密更新中..."):
-                    # 找到該使用者在 Google Sheet 中的行數
-                    cell = sheet_users.find(st.session_state.emp_id)
-                    # 更新密碼 (加密) 與狀態
+                    cell = sheet_users.find(st.session_state.emp_id, in_column=1)
                     sheet_users.update_cell(cell.row, 3, hash_pw(new_pw))
                     sheet_users.update_cell(cell.row, 5, "FALSE")
                     st.cache_data.clear()
@@ -195,7 +192,6 @@ elif st.session_state.must_change_pw:
 # 🔓 主系統區塊 (登入後才會顯示)
 # ==========================================
 else:
-    # --- 側邊欄：雙系統模式切換 ---
     with st.sidebar:
         st.success(f"👤 歡迎登入，{st.session_state.user_name}！")
         st.markdown("### 🎛️ 系統模式切換")
@@ -217,9 +213,7 @@ else:
         if st.button("🚪 登出系統", use_container_width=True):
             for key in list(st.session_state.keys()): del st.session_state[key]
             st.rerun()
-    # -----------------------------
 
-    # --- 標題區塊 ---
     if app_mode != "🧮 產品厚度計算機":
         col1, col2 = st.columns([1, 5])
         with col1:
@@ -232,7 +226,6 @@ else:
     # 模式 A：現場維修系統
     # ==========================================
     if app_mode == "🔧 現場維修系統":
-        # 📌 新增了「修改我的紀錄」分頁
         tab1, tab2, tab3, tab4 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄", "📊 數據分析", "✏️ 修改我的紀錄"])
         df = load_data("maint")
 
@@ -291,9 +284,7 @@ else:
                 comp_options = ["預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"]
                 
                 input_date = st.date_input("日期", datetime.now(tz_tw).date(), key=f"m_date_{fk}")
-                # 📌 自動帶入登入者姓名，並鎖定輸入框 (無法竄改)
                 input_engineer = st.text_input("填單人員", value=st.session_state.user_name, disabled=True, key=f"m_eng_{fk}")
-                
                 input_customer = st.text_input("客戶與廠區", key=f"m_cust_{fk}")
                 input_machine = st.selectbox("設備機型", ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"], index=None, key=f"m_mach_{fk}")
                 input_component = st.selectbox("異常部件", comp_options, index=None, key=f"m_comp_{fk}")
@@ -325,18 +316,77 @@ else:
                 with col1: st.metric("累積維修總件數", f"{len(df)} 件")
                 with col2: st.metric("本月新增件數", f"{df[df['Date'].str.startswith(datetime.now(tz_tw).strftime('%Y-%m'), na=False)].shape[0]} 件")
                 with col3: st.metric("涵蓋機型數量", f"{df['Machine_Model'].nunique()} 種")
+                col_chart1, col_chart2 = st.columns(2)
+                with col_chart1:
+                    machine_counts = df['Machine_Model'].value_counts().reset_index()
+                    machine_counts.columns = ['機型', '次數']
+                    fig_pie = px.pie(machine_counts, names='機型', values='次數', hole=0.4, color_discrete_sequence=px.colors.sequential.YlOrBr[2:])
+                    fig_pie.update_layout(margin=dict(t=0, b=0, l=0, r=0), dragmode=False)
+                    st.plotly_chart(fig_pie, use_container_width=True, config={'displayModeBar': False})
+                with col_chart2:
+                    comp_counts = df['Component'].value_counts().reset_index()
+                    comp_counts.columns = ['部件', '次數']
+                    fig_bar = px.bar(comp_counts, x='次數', y='部件', orientation='h', text='次數', color_discrete_sequence=['#FFA726'])
+                    fig_bar.update_traces(textposition='outside')
+                    fig_bar.update_layout(yaxis={'categoryorder':'total ascending', 'fixedrange': True}, xaxis={'fixedrange': True}, margin=dict(t=0, b=0, l=0, r=0), xaxis_title="報修次數", yaxis_title="", dragmode=False)
+                    st.plotly_chart(fig_bar, use_container_width=True, config={'displayModeBar': False})
             else:
                 st.info("目前系統中還沒有資料！")
 
+        # 📌 完美解鎖：維修修改系統
         with tab4:
             st.subheader("✏️ 修改我的維修紀錄")
-            st.info("💡 系統第一階段升級已完成：您的帳號已啟動最高等級的資安保護！未來在這裡，您只能修改您本人建立的紀錄。為確保程式穩定性，專屬修改表單將於下一版直接為您解鎖！")
+            edit_m_id = st.text_input("🔍 請輸入要修改的維修單號 (例如: REP-260326-1200)", key="edit_m_id")
+            
+            if edit_m_id and not df.empty:
+                row_data = df[df['Log_ID'] == edit_m_id]
+                if row_data.empty:
+                    st.error("❌ 找不到此單號，請確認是否輸入正確。")
+                else:
+                    row_dict = row_data.iloc[0].to_dict()
+                    # 🛡️ 權限檢核機制：必須是本人，或是 Admin 才放行
+                    if str(row_dict.get('Engineer', '')).strip() != st.session_state.user_name and st.session_state.role != 'Admin':
+                        st.error(f"⛔ 權限不足！此單據為 {row_dict.get('Engineer', '他人')} 建立，您只能修改本人的紀錄。")
+                    else:
+                        st.success(f"✅ 成功載入單號：{edit_m_id} (若不需修改照片請留空)")
+                        with st.form("edit_m_form"):
+                            try: old_date = datetime.strptime(str(row_dict.get('Date', '')), "%Y-%m-%d").date()
+                            except: old_date = datetime.now(tz_tw).date()
+                            
+                            e_date = st.date_input("日期", value=old_date, key="em_date")
+                            e_engineer = st.text_input("填單人員", value=str(row_dict.get('Engineer', '')), disabled=True, key="em_eng")
+                            e_customer = st.text_input("客戶與廠區", value=str(row_dict.get('Customer', '')), key="em_cust")
+                            
+                            mach_opts = ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"]
+                            old_mach = str(row_dict.get('Machine_Model', ''))
+                            m_idx = mach_opts.index(old_mach) if old_mach in mach_opts else None
+                            e_machine = st.selectbox("設備機型", mach_opts, index=m_idx, key="em_mach")
+                            
+                            comp_options = ["預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"]
+                            old_comp = str(row_dict.get('Component', ''))
+                            c_idx = comp_options.index(old_comp) if old_comp in comp_options else None
+                            e_component = st.selectbox("異常部件", comp_options, index=c_idx, key="em_comp")
+                            
+                            e_issue = st.text_area("問題描述", value=str(row_dict.get('Issue_Desc', '')), key="em_iss")
+                            e_solution = st.text_area("解決方案", value=str(row_dict.get('Solution', '')), key="em_sol")
+                            e_upload = st.file_uploader("🖼️ 更新現場照片 (選填，若無上傳將保留舊照片)", type=['jpg', 'png', 'jpeg'], key="em_photo")
+                            
+                            if st.form_submit_button("💾 覆蓋更新紀錄"):
+                                with st.spinner("更新雲端資料庫中..."):
+                                    new_photo_url = upload_image(e_upload, f"{edit_m_id}_edit.jpg") if e_upload else str(row_dict.get('Photo_URL', ''))
+                                    new_m_row = [
+                                        edit_m_id, e_date.strftime("%Y-%m-%d"), e_engineer, e_customer, 
+                                        e_machine, e_component, e_issue, e_solution, new_photo_url
+                                    ]
+                                    cell = sheet_maint.find(edit_m_id, in_column=1)
+                                    sheet_maint.update(values=[new_m_row], range_name=f"A{cell.row}:I{cell.row}")
+                                    st.cache_data.clear()
+                                    st.success(f"✅ 單號 {edit_m_id} 更新成功！請重新載入頁面。")
 
     # ==========================================
     # 模式 B：DEMO 實驗紀錄
     # ==========================================
     elif app_mode == "🧪 DEMO 實驗紀錄":
-        # 📌 新增了「修改我的紀錄」分頁
         tab_d1, tab_d2, tab_d3, tab_d4 = st.tabs(["🔍 參數查詢", "➕ 新增紀錄 (NT+CVP)", "➕ 新增紀錄 (V-160)", "✏️ 修改我的紀錄"])
         df_d = load_data("demo")
 
@@ -418,7 +468,6 @@ else:
                 with c1: input_d_date = st.date_input("測試日期", datetime.now(tz_tw).date(), key=f"d_date_{fk}")
                 with c2: input_d_customer = st.text_input("客戶名稱", key=f"d_cust_{fk}")
                 c4, c5 = st.columns(2)
-                # 📌 自動帶入並鎖定操作人
                 with c4: input_d_operator = st.text_input("操作人", value=st.session_state.user_name, disabled=True, key=f"d_oper_{fk}")
                 with c5: input_d_equip = st.text_input("設備類型 (如: CVP-1600SP)", key=f"d_equip_{fk}")
                 
@@ -434,6 +483,7 @@ else:
                         input_d_film_model = st.text_input("膜材型號 / 厚度", key=f"f_mod_{fk}")
                 
                 st.write("---")
+                st.markdown("##### ⚙️ 各站機台參數設定 (沒填寫的欄位將自動隱藏)")
                 with st.expander("📍 預貼機參數"):
                     c_p1, c_p2 = st.columns(2)
                     with c_p1: pre_t = st.text_input("預貼溫度 (℃)", key=f"p_t_{fk}")
@@ -491,7 +541,6 @@ else:
                 with c1: input_v_date = st.date_input("測試日期", datetime.now(tz_tw).date(), key=f"v_date_{fk}")
                 with c2: input_v_customer = st.text_input("客戶名稱", key=f"v_cust_{fk}")
                 c4, c5 = st.columns(2)
-                # 📌 自動帶入並鎖定操作人
                 with c4: input_v_operator = st.text_input("操作人", value=st.session_state.user_name, disabled=True, key=f"v_oper_{fk}")
                 with c5: input_v_equip = st.text_input("設備類型", value="V-160", disabled=True, key=f"v_equip_{fk}") 
                 
@@ -565,13 +614,96 @@ else:
                             st.session_state.form_key += 1
                             st.rerun()
 
-        if st.session_state.success_msg:
-            st.success(st.session_state.success_msg)
-            st.session_state.success_msg = ""
-            
+        # 📌 完美解鎖：DEMO 實驗紀錄修改系統 (進階模式)
         with tab_d4:
-            st.subheader("✏️ 修改我的實驗紀錄")
-            st.info("💡 系統第一階段升級已完成：您的帳號已啟動最高等級的資安保護！未來在這裡，您只能修改您本人建立的紀錄。為確保程式穩定性，專屬修改表單將於下一版直接為您解鎖！")
+            st.subheader("✏️ 修改我的實驗紀錄 (Pro 模式)")
+            st.info("💡 系統已自動將複雜的機台參數轉換為純文字編輯模式，請直接在對應的文字框內修正數值，此設計可確保原有的特殊設定不走位。")
+            edit_d_id = st.text_input("🔍 請輸入要修改的實驗單號 (例如: DEMO-260326-1200)", key="edit_d_id")
+            
+            if edit_d_id and not df_d.empty:
+                row_data = df_d[df_d['Log_ID'] == edit_d_id]
+                if row_data.empty:
+                    st.error("❌ 找不到此單號，請確認是否輸入正確。")
+                else:
+                    row_dict = row_data.iloc[0].to_dict()
+                    # 🛡️ 權限檢核機制
+                    if str(row_dict.get('Operator', '')).strip() != st.session_state.user_name and st.session_state.role != 'Admin':
+                        st.error(f"⛔ 權限不足！此實驗單為 {row_dict.get('Operator', '他人')} 建立，您只能修改本人的紀錄。")
+                    else:
+                        st.success(f"✅ 成功載入實驗單號：{edit_d_id} (若不需修改照片請留空)")
+                        with st.form("edit_d_form"):
+                            try: old_date = datetime.strptime(str(row_dict.get('Date', '')), "%Y-%m-%d").date()
+                            except: old_date = datetime.now(tz_tw).date()
+                            
+                            c1, c2 = st.columns(2)
+                            with c1: ed_date = st.date_input("測試日期", value=old_date, key="ed_date")
+                            with c2: ed_customer = st.text_input("客戶名稱", value=str(row_dict.get('Customer', '')), key="ed_cust")
+                            
+                            c3, c4 = st.columns(2)
+                            with c3: ed_operator = st.text_input("操作人", value=str(row_dict.get('Operator', '')), disabled=True, key="ed_oper")
+                            with c4: ed_equip = st.text_input("設備類型", value=str(row_dict.get('Equipment', '')), key="ed_equip")
+                            
+                            with st.expander("📍 修改：基材與膜材資訊", expanded=True):
+                                c_s1, c_s2 = st.columns(2)
+                                with c_s1: 
+                                    ed_sub_t = st.text_input("板材類型", value=str(row_dict.get('Substrate_Type', '')), key="ed_st")
+                                    ed_sub_size = st.text_input("基板尺寸與厚度", value=str(row_dict.get('Substrate_Size', '')), key="ed_sd")
+                                with c_s2: 
+                                    ed_film_m = st.text_input("膜材種類", value=str(row_dict.get('Film_Material', '')), key="ed_fm")
+                                    ed_film_model = st.text_input("膜材型號 / 厚度", value=str(row_dict.get('Film_Model', '')), key="ed_fmod")
+                            
+                            st.write("---")
+                            # 📌 採用「純文字編輯模式 (Pro Mode)」避免格式走位
+                            is_v160 = "V-160" in str(row_dict.get('Equipment', '')).upper() or "V160" in str(row_dict.get('Equipment', '')).upper()
+                            
+                            with st.expander("⚙️ 修改：機台參數 (進階文字編輯)", expanded=True):
+                                if is_v160:
+                                    ed_v_params = st.text_area("🔹 V-160 參數", value=str(row_dict.get('Lam_1st', '')).replace('無', ''), height=200, key="ed_v_p")
+                                    ed_pre, ed_l1, ed_l2, ed_l3 = "無", ed_v_params, "無", "無"
+                                else:
+                                    c_p, c_l1 = st.columns(2)
+                                    with c_p: ed_pre = st.text_area("🔹 預貼機參數", value=str(row_dict.get('Pre_Lam', '')).replace('無', ''), height=120, key="ed_pre")
+                                    with c_l1: ed_l1 = st.text_area("🔹 1st 壓模參數", value=str(row_dict.get('Lam_1st', '')).replace('無', ''), height=120, key="ed_l1")
+                                    
+                                    c_l2, c_l3 = st.columns(2)
+                                    with c_l2: ed_l2 = st.text_area("🔹 2nd 壓模參數", value=str(row_dict.get('Lam_2nd', '')).replace('無', ''), height=150, key="ed_l2")
+                                    with c_l3: ed_l3 = st.text_area("🔹 3rd 壓模參數", value=str(row_dict.get('Lam_3rd', '')).replace('無', ''), height=150, key="ed_l3")
+                            
+                            st.write("---")
+                            
+                            c_q1, c_q2 = st.columns(2)
+                            with c_q1: ed_qty = st.text_input("壓合數量 (片/次)", value=str(row_dict.get('Qty', '')), key="ed_qty")
+                            
+                            eval_opts = ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"]
+                            old_eval = str(row_dict.get('Self_Eval', ''))
+                            e_idx = eval_opts.index(old_eval) if old_eval in eval_opts else 0
+                            with c_q2: ed_eval = st.selectbox("內部自評結果", eval_opts, index=e_idx, key="ed_eval")
+                            
+                            ed_remark = st.text_area("備註 (測試變動說明、具體異常)", value=str(row_dict.get('Remarks', '')), key="ed_rmk")
+                            ed_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", value=str(row_dict.get('Feedback', '')), key="ed_fb")
+                            ed_upload = st.file_uploader("🖼️ 更新測試照片 (選填，若無上傳將保留舊照片)", type=['jpg', 'png', 'jpeg'], key="ed_photo")
+                            
+                            if st.form_submit_button("💾 覆蓋更新實驗紀錄"):
+                                with st.spinner("更新雲端資料庫中..."):
+                                    new_photo_url = upload_image(ed_upload, f"{edit_d_id}_edit.jpg") if ed_upload else str(row_dict.get('Photo_URL', ''))
+                                    
+                                    # 處理空字串回填 "無" 避免影響顯示邏輯
+                                    final_pre = ed_pre.strip() if ed_pre.strip() else "無"
+                                    final_l1 = ed_l1.strip() if ed_l1.strip() else "無"
+                                    final_l2 = ed_l2.strip() if ed_l2.strip() else "無"
+                                    final_l3 = ed_l3.strip() if ed_l3.strip() else "無"
+
+                                    new_d_row = [
+                                        edit_d_id, ed_date.strftime("%Y-%m-%d"), ed_operator, 
+                                        ed_customer, ed_equip, 
+                                        ed_sub_t, ed_sub_size, ed_film_m, ed_film_model, 
+                                        final_pre, final_l1, final_l2, final_l3, 
+                                        ed_qty, ed_eval, ed_remark, ed_feedback, new_photo_url
+                                    ]
+                                    cell = sheet_demo.find(edit_d_id, in_column=1)
+                                    sheet_demo.update(values=[new_d_row], range_name=f"A{cell.row}:R{cell.row}")
+                                    st.cache_data.clear()
+                                    st.success(f"✅ 實驗單號 {edit_d_id} 更新成功！請重新載入頁面。")
 
     # ==========================================
     # 模式 C：全新「產品厚度計算機」
