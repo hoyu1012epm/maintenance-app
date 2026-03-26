@@ -231,6 +231,11 @@ else:
                     st.download_button("📥 下載實驗離線版", data=df_demo.to_csv(index=False).encode('utf-8-sig'), file_name=f"實驗紀錄_{datetime.now(tz_tw).strftime('%Y%m%d')}.csv", mime="text/csv")
         
         st.write("---")
+        # 📌 全新加入的全域重新整理按鈕！
+        if st.button("🔄 重新整理最新資料", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
+            
         if st.button("🚪 登出系統", use_container_width=True):
             for key in list(st.session_state.keys()): del st.session_state[key]
             st.rerun()
