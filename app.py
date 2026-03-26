@@ -153,8 +153,7 @@ if not st.session_state.logged_in:
     st.markdown("<p style='text-align: center; color: #666;'>請輸入您的工號與密碼以登入系統</p>", unsafe_allow_html=True)
     
     with st.form("login_form"):
-        # 📌 完美修正：工號 (EPM ID) 並移除範例
-        emp_id = st.text_input("工號 (EPM ID)")
+        emp_id = st.text_input("工號 (EPM_ID)")
         password = st.text_input("密碼", type="password")
         submitted = st.form_submit_button("登入", use_container_width=True)
         
@@ -210,9 +209,15 @@ else:
     with st.sidebar:
         st.success(f"👤 歡迎登入，{st.session_state.user_name}！")
         st.markdown("### 🎛️ 系統模式切換")
-        app_mode = st.radio("選擇要使用的系統：", ["🔧 現場維修系統", "🧪 DEMO 實驗紀錄", "🧮 產品厚度計算機"], label_visibility="collapsed")
         
-        if app_mode != "🧮 產品厚度計算機":
+        # 📌 動態選單設定：依據權限決定是否顯示管理員後台
+        sys_options = ["🔧 現場維修系統", "🧪 DEMO 實驗紀錄", "🧮 產品厚度計算機"]
+        if st.session_state.role == 'Admin':
+            sys_options.append("👑 管理員後台")
+            
+        app_mode = st.radio("選擇要使用的系統：", sys_options, label_visibility="collapsed")
+        
+        if app_mode != "🧮 產品厚度計算機" and app_mode != "👑 管理員後台":
             st.write("---")
             st.markdown("### 📴 無塵室離線準備")
             if app_mode == "🔧 現場維修系統":
@@ -229,15 +234,14 @@ else:
             for key in list(st.session_state.keys()): del st.session_state[key]
             st.rerun()
 
-    if app_mode != "🧮 產品厚度計算機":
+    if app_mode != "🧮 產品厚度計算機" and app_mode != "👑 管理員後台":
         col1, col2 = st.columns([1, 5])
         with col1:
             try: st.image("logo.png", width=80) 
             except: st.title("⚙️") 
         with col2:
             st.markdown(f"<h1 style='margin-top: -15px;'>{'設備維修知識庫' if app_mode == '🔧 現場維修系統' else 'DEMO 實驗資料庫'}</h1>", unsafe_allow_html=True)
-
-    # ==========================================
+            # ==========================================
     # 模式 A：現場維修系統
     # ==========================================
     if app_mode == "🔧 現場維修系統":
@@ -294,7 +298,6 @@ else:
 
         with tab2:
             fk = st.session_state.form_key
-            # 📌 加入 clear_on_submit=True 魔法，讓表單送出後自動清空
             with st.form(f"maint_form_{fk}", clear_on_submit=True):
                 st.subheader("📝 填寫維修紀錄")
                 comp_options = ["預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"]
@@ -309,7 +312,6 @@ else:
                 upload_file = st.file_uploader("🖼️ 附加現場照片", type=['jpg', 'png', 'jpeg'], key=f"m_photo_{fk}")
                 
                 st.write("---")
-                # 📌 專屬成功訊息暫存區，放在按鈕正上方
                 maint_msg = st.empty()
                 if st.form_submit_button("送出維修紀錄", key=f"btn_m_{fk}"):
                     if not all([input_customer, input_machine, input_component, input_issue, input_solution]):
@@ -401,7 +403,8 @@ else:
                                 sheet_maint.update(values=[new_m_row], range_name=f"A{cell.row}:I{cell.row}")
                                 st.cache_data.clear()
                                 edit_m_msg.success(f"✅ 單號 {edit_m_id} 更新成功！")
-                                # ==========================================
+
+    # ==========================================
     # 模式 B：DEMO 實驗紀錄
     # ==========================================
     elif app_mode == "🧪 DEMO 實驗紀錄":
@@ -498,7 +501,6 @@ else:
 
         with tab_d2:
             fk = st.session_state.form_key
-            # 📌 加入 clear_on_submit=True，讓表單保留在原地並清空
             with st.form(f"demo_form_{fk}", clear_on_submit=True):
                 st.subheader("🧪 填寫實驗紀錄 (NT+CVP)")
                 c1, c2 = st.columns(2)
@@ -537,12 +539,11 @@ else:
                 with c_q1: input_d_qty = st.text_input("壓合數量 (片/次)", key=f"d_qty_{fk}")
                 with c_q2: input_d_eval = st.selectbox("內部自評結果", ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"], key=f"d_eval_{fk}")
                 
-                input_d_remark = st.text_area("備註 (測試變動說明、具體異常)", key=f"d_rmk_{fk}")
+                input_d_remark = text_area("備註 (測試變動說明、具體異常)", key=f"d_rmk_{fk}")
                 input_d_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", key=f"d_fb_{fk}")
                 upload_d_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"d_photo_{fk}")
                 
                 st.write("---")
-                # 📌 成功訊息置於按鈕正上方
                 demo_msg = st.empty()
                 if st.form_submit_button("送出實驗紀錄", key=f"btn_d_{fk}"):
                     if not all([input_d_customer, input_d_equip]):
@@ -773,7 +774,7 @@ else:
                                     new_v_dict = {
                                         "加壓模式": ed_v_mode, "下真空時間 (sec)": ed_v_tv, "上溫度 (℃)": ed_v_tt, "下溫度 (℃)": ed_v_tb,
                                         "上硅膠墊垂落時間 (sec)": ed_v_tdrop_t, "上氣囊加壓壓力 (kgf/cm²)": ed_v_pt, "上氣囊加壓時間 (sec)": ed_v_tpt,
-                                        "下加壓延遲時間 (sec)": v_dly_b, "下硅膠墊垂落時間 (sec)": ed_v_tdrop_b,
+                                        "下加壓延遲時間 (sec)": ed_v_dly_b, "下硅膠墊垂落時間 (sec)": ed_v_tdrop_b,
                                         "下加壓壓力 (kgf/cm²)": ed_v_pb, "下加壓時間 (sec)": ed_v_tpb
                                     }
                                     final_pre, final_l1, final_l2, final_l3 = "無", pack_params(new_v_dict), "無", "無"
@@ -796,7 +797,7 @@ else:
                                 edit_d_msg.success(f"✅ 實驗單號 {edit_d_id} 更新成功！")
 
     # ==========================================
-    # 模式 C：全新「產品厚度計算機」
+    # 模式 C：產品厚度計算機
     # ==========================================
     elif app_mode == "🧮 產品厚度計算機":
         st.markdown("## 🧮 產品厚度計算機")
@@ -830,3 +831,62 @@ else:
             st.write("---")
             st.markdown(f"""<div class="calc-green">🎯 輸入 3rd 產品厚度 (對應第 10 項)：{val_10:.2f}</div>""", unsafe_allow_html=True)
             st.markdown(f"""<div class="calc-yellow" style="margin-top:15px; border-left: 5px solid #FF8F00;">11. 膜尚可壓縮量：{val_11:.2f}</div>""", unsafe_allow_html=True)
+
+    # ==========================================
+    # 模式 D：👑 管理員後台 (Admin 專屬)
+    # ==========================================
+    elif app_mode == "👑 管理員後台":
+        st.markdown("## 👑 管理員專屬後台")
+        st.info("💡 歡迎進入系統核心控制台！您可以在此總覽所有帳號狀態、新增實驗室同仁，或協助忘記密碼的人員重置密碼。")
+        
+        users_df = load_data("users")
+        
+        tab_a1, tab_a2, tab_a3 = st.tabs(["👥 帳號總覽", "➕ 新增人員", "🔄 重置密碼"])
+        
+        with tab_a1:
+            st.subheader("目前系統帳號清單")
+            # 隱藏密碼亂碼欄位，讓畫面乾淨
+            display_df = users_df[['EPM_ID', 'Name', 'Role', 'Is_First_Login']].copy()
+            display_df.columns = ['工號 (EPM_ID)', '姓名', '權限等級', '是否為首次登入 (需改密碼)']
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+            
+        with tab_a2:
+            st.subheader("新增系統使用者")
+            with st.form("add_user_form", clear_on_submit=True):
+                c1, c2 = st.columns(2)
+                with c1: new_id = st.text_input("工號 (EPM_ID)", placeholder="例如: E002")
+                with c2: new_name = st.text_input("姓名", placeholder="請輸入同事姓名")
+                
+                new_role = st.selectbox("權限等級", ["User", "Admin"])
+                
+                st.write("---")
+                admin_add_msg = st.empty()
+                if st.form_submit_button("➕ 建立帳號 (預設密碼為 123)"):
+                    if not new_id or not new_name:
+                        admin_add_msg.error("⚠️ 請填寫工號與姓名！")
+                    elif str(new_id) in users_df['EPM_ID'].astype(str).values:
+                        admin_add_msg.error(f"⛔ 工號 {new_id} 已經存在，請確認是否重複建立！")
+                    else:
+                        with st.spinner("建立帳號中..."):
+                            default_hash = hash_pw("123")
+                            sheet_users.append_row([str(new_id), str(new_name), default_hash, new_role, "TRUE"])
+                            st.cache_data.clear()
+                            admin_add_msg.success(f"✅ 成功新增人員：{new_name}！請請他用預設密碼 123 登入。")
+                            
+        with tab_a3:
+            st.subheader("協助人員重置密碼")
+            with st.form("reset_pw_form"):
+                reset_opts = [f"{r['EPM_ID']} - {r['Name']}" for idx, r in users_df.iterrows()]
+                reset_target = st.selectbox("🔍 請選擇要重置密碼的人員", reset_opts)
+                
+                st.write("---")
+                admin_reset_msg = st.empty()
+                if st.form_submit_button("🔄 重置該員密碼為 123"):
+                    target_id = reset_target.split(" - ")[0]
+                    target_name = reset_target.split(" - ")[1]
+                    with st.spinner(f"正在重置 {target_name} 的密碼..."):
+                        cell = sheet_users.find(target_id, in_column=1)
+                        sheet_users.update_cell(cell.row, 3, hash_pw("123"))
+                        sheet_users.update_cell(cell.row, 5, "TRUE")
+                        st.cache_data.clear()
+                        admin_reset_msg.success(f"✅ 成功將 {target_name} ({target_id}) 的密碼重置為 123！下次登入將強制修改。")
