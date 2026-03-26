@@ -39,7 +39,6 @@ def pack_params(param_dict):
             lines.append(f"{k}：{v.strip()}")
     return "\n".join(lines) if lines else "無"
 
-# 📌 全新魔法：把試算表的文字拆解成字典，讓修改表單能讀懂
 def unpack_params(param_str):
     if pd.isna(param_str) or str(param_str).strip() in ["", "無", "nan", "None"]:
         return {}
@@ -62,7 +61,7 @@ def format_params_html(raw_text):
         valid_lines.append(line)
     return "<br>".join(valid_lines) if valid_lines else ""
 
-# 📌 壓模機輸入 UI (新增與修改共用，加入 defaults 預設值參數)
+# 📌 壓模機輸入 UI (新增與修改共用)
 def render_lam_inputs(stage_name, key_prefix, fk, defaults=None):
     defaults = defaults or {}
     with st.expander(f"📍 {stage_name} 參數"):
@@ -206,7 +205,7 @@ elif st.session_state.must_change_pw:
                     st.rerun()
 
 # ==========================================
-# 🔓 主系統區塊 (登入後才會顯示)
+# 🔓 主系統區塊
 # ==========================================
 else:
     with st.sidebar:
@@ -363,29 +362,30 @@ else:
                         st.error(f"⛔ 權限不足！此單據為 {row_dict.get('Engineer', '他人')} 建立，您只能修改本人的紀錄。")
                     else:
                         st.success(f"✅ 成功載入單號：{edit_m_id} (若不需修改照片請留空)")
-                        with st.form("edit_m_form"):
+                        # 📌 綁定動態 Key edit_m_id
+                        with st.form(f"edit_m_form_{edit_m_id}"):
                             try: old_date = datetime.strptime(str(row_dict.get('Date', '')), "%Y-%m-%d").date()
                             except: old_date = datetime.now(tz_tw).date()
                             
-                            e_date = st.date_input("日期", value=old_date, key="em_date")
-                            e_engineer = st.text_input("填單人員", value=str(row_dict.get('Engineer', '')), disabled=True, key="em_eng")
-                            e_customer = st.text_input("客戶與廠區", value=str(row_dict.get('Customer', '')), key="em_cust")
+                            e_date = st.date_input("日期", value=old_date, key=f"em_date_{edit_m_id}")
+                            e_engineer = st.text_input("填單人員", value=str(row_dict.get('Engineer', '')), disabled=True, key=f"em_eng_{edit_m_id}")
+                            e_customer = st.text_input("客戶與廠區", value=str(row_dict.get('Customer', '')), key=f"em_cust_{edit_m_id}")
                             
                             mach_opts = ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"]
                             old_mach = str(row_dict.get('Machine_Model', ''))
                             m_idx = mach_opts.index(old_mach) if old_mach in mach_opts else None
-                            e_machine = st.selectbox("設備機型", mach_opts, index=m_idx, key="em_mach")
+                            e_machine = st.selectbox("設備機型", mach_opts, index=m_idx, key=f"em_mach_{edit_m_id}")
                             
                             comp_options = ["預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"]
                             old_comp = str(row_dict.get('Component', ''))
                             c_idx = comp_options.index(old_comp) if old_comp in comp_options else None
-                            e_component = st.selectbox("異常部件", comp_options, index=c_idx, key="em_comp")
+                            e_component = st.selectbox("異常部件", comp_options, index=c_idx, key=f"em_comp_{edit_m_id}")
                             
-                            e_issue = st.text_area("問題描述", value=str(row_dict.get('Issue_Desc', '')), key="em_iss")
-                            e_solution = st.text_area("解決方案", value=str(row_dict.get('Solution', '')), key="em_sol")
-                            e_upload = st.file_uploader("🖼️ 更新現場照片 (選填，若無上傳將保留舊照片)", type=['jpg', 'png', 'jpeg'], key="em_photo")
+                            e_issue = st.text_area("問題描述", value=str(row_dict.get('Issue_Desc', '')), key=f"em_iss_{edit_m_id}")
+                            e_solution = st.text_area("解決方案", value=str(row_dict.get('Solution', '')), key=f"em_sol_{edit_m_id}")
+                            e_upload = st.file_uploader("🖼️ 更新現場照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"em_photo_{edit_m_id}")
                             
-                            if st.form_submit_button("💾 覆蓋更新紀錄"):
+                            if st.form_submit_button("💾 覆蓋更新紀錄", key=f"btn_em_{edit_m_id}"):
                                 with st.spinner("更新雲端資料庫中..."):
                                     new_photo_url = upload_image(e_upload, f"{edit_m_id}_edit.jpg") if e_upload else str(row_dict.get('Photo_URL', ''))
                                     new_m_row = [
@@ -627,7 +627,6 @@ else:
                             st.session_state.form_key += 1
                             st.rerun()
 
-        # 📌 完美解鎖：DEMO 實驗紀錄修改系統 (還原 UI 模式)
         with tab_d4:
             st.subheader("✏️ 修改我的實驗紀錄")
             edit_d_id = st.text_input("🔍 請輸入要修改的實驗單號 (例如: DEMO-260326-1200)", key="edit_d_id")
@@ -642,17 +641,18 @@ else:
                         st.error(f"⛔ 權限不足！此實驗單為 {row_dict.get('Operator', '他人')} 建立，您只能修改本人的紀錄。")
                     else:
                         st.success(f"✅ 成功載入實驗單號：{edit_d_id} (若不需修改照片請留空)")
-                        with st.form("edit_d_form"):
+                        # 📌 綁定動態 Key edit_d_id
+                        with st.form(f"edit_d_form_{edit_d_id}"):
                             try: old_date = datetime.strptime(str(row_dict.get('Date', '')), "%Y-%m-%d").date()
                             except: old_date = datetime.now(tz_tw).date()
                             
                             c1, c2 = st.columns(2)
-                            with c1: ed_date = st.date_input("測試日期", value=old_date, key="ed_date")
-                            with c2: ed_customer = st.text_input("客戶名稱", value=str(row_dict.get('Customer', '')), key="ed_cust")
+                            ed_date = st.date_input("測試日期", value=old_date, key=f"ed_date_{edit_d_id}")
+                            ed_customer = st.text_input("客戶名稱", value=str(row_dict.get('Customer', '')), key=f"ed_cust_{edit_d_id}")
                             
                             c3, c4 = st.columns(2)
-                            with c3: ed_operator = st.text_input("操作人", value=str(row_dict.get('Operator', '')), disabled=True, key="ed_oper")
-                            with c4: ed_equip = st.text_input("設備類型", value=str(row_dict.get('Equipment', '')), key="ed_equip")
+                            with c3: ed_operator = st.text_input("操作人", value=str(row_dict.get('Operator', '')), disabled=True, key=f"ed_oper_{edit_d_id}")
+                            with c4: ed_equip = st.text_input("設備類型", value=str(row_dict.get('Equipment', '')), key=f"ed_equip_{edit_d_id}")
                             
                             with st.expander("📍 修改：基材與膜材資訊", expanded=True):
                                 c_s1, c_s2 = st.columns(2)
@@ -661,21 +661,20 @@ else:
                                 st_opts = ["", "PCB", "Wafer", "Glass", "其他"]
                                 st_idx = st_opts.index(old_st) if old_st in st_opts else 4
                                 with c_s1: 
-                                    ed_sub_t = st.selectbox("板材類型", st_opts, index=st_idx, key="ed_st")
-                                    ed_sub_t_other = st.text_input("自填板材", value=old_st if st_idx == 4 else "", label_visibility="collapsed", key="ed_sto")
-                                    ed_sub_size = st.text_input("基板尺寸與厚度", value=str(row_dict.get('Substrate_Size', '')), key="ed_sd")
+                                    ed_sub_t = st.selectbox("板材類型", st_opts, index=st_idx, key=f"ed_st_{edit_d_id}")
+                                    ed_sub_t_other = st.text_input("自填板材", value=old_st if st_idx == 4 else "", label_visibility="collapsed", key=f"ed_sto_{edit_d_id}")
+                                    ed_sub_size = st.text_input("基板尺寸與厚度", value=str(row_dict.get('Substrate_Size', '')), key=f"ed_sd_{edit_d_id}")
                                 
                                 old_fm = str(row_dict.get('Film_Material', ''))
                                 fm_opts = ["", "ABF", "DAF", "NCF", "PI", "其他"]
                                 fm_idx = fm_opts.index(old_fm) if old_fm in fm_opts else 5
                                 with c_s2: 
-                                    ed_film_m = st.selectbox("膜材種類", fm_opts, index=fm_idx, key="ed_fm")
-                                    ed_film_m_other = st.text_input("自填膜材", value=old_fm if fm_idx == 5 else "", label_visibility="collapsed", key="ed_fmo")
-                                    ed_film_model = st.text_input("膜材型號 / 厚度", value=str(row_dict.get('Film_Model', '')), key="ed_fmod")
+                                    ed_film_m = st.selectbox("膜材種類", fm_opts, index=fm_idx, key=f"ed_fm_{edit_d_id}")
+                                    ed_film_m_other = st.text_input("自填膜材", value=old_fm if fm_idx == 5 else "", label_visibility="collapsed", key=f"ed_fmo_{edit_d_id}")
+                                    ed_film_model = st.text_input("膜材型號 / 厚度", value=str(row_dict.get('Film_Model', '')), key=f"ed_fmod_{edit_d_id}")
                             
                             st.write("---")
                             
-                            # 📌 神奇的資料反解包與 UI 還原
                             is_v160 = "V-160" in str(row_dict.get('Equipment', '')).upper() or "V160" in str(row_dict.get('Equipment', '')).upper()
                             
                             if is_v160:
@@ -685,54 +684,54 @@ else:
                                     v_modes = ["", "上", "下", "上下"]
                                     old_vmode = v_defs.get("加壓模式", "")
                                     vm_idx = v_modes.index(old_vmode) if old_vmode in v_modes else 0
-                                    with c_v1: ed_v_mode = st.selectbox("加壓模式", v_modes, index=vm_idx, key="ed_vm")
-                                    with c_v2: ed_v_tv = st.text_input("下真空時間 (sec)", value=v_defs.get("下真空時間 (sec)", ""), key="ed_v_tv")
+                                    with c_v1: ed_v_mode = st.selectbox("加壓模式", v_modes, index=vm_idx, key=f"ed_vm_{edit_d_id}")
+                                    with c_v2: ed_v_tv = st.text_input("下真空時間 (sec)", value=v_defs.get("下真空時間 (sec)", ""), key=f"ed_v_tv_{edit_d_id}")
                                     
                                     c_v3, c_v4 = st.columns(2)
-                                    with c_v3: ed_v_tt = st.text_input("上溫度 (℃)", value=v_defs.get("上溫度 (℃)", ""), key="ed_v_tt")
-                                    with c_v4: ed_v_tb = st.text_input("下溫度 (℃)", value=v_defs.get("下溫度 (℃)", ""), key="ed_v_tb")
+                                    with c_v3: ed_v_tt = st.text_input("上溫度 (℃)", value=v_defs.get("上溫度 (℃)", ""), key=f"ed_v_tt_{edit_d_id}")
+                                    with c_v4: ed_v_tb = st.text_input("下溫度 (℃)", value=v_defs.get("下溫度 (℃)", ""), key=f"ed_v_tb_{edit_d_id}")
                                     
                                     st.write("---")
-                                    ed_v_tdrop_t = st.text_input("上硅膠墊垂落時間 (sec)", value=v_defs.get("上硅膠墊垂落時間 (sec)", ""), key="ed_v_tdt")
+                                    ed_v_tdrop_t = st.text_input("上硅膠墊垂落時間 (sec)", value=v_defs.get("上硅膠墊垂落時間 (sec)", ""), key=f"ed_v_tdt_{edit_d_id}")
                                     c_v5, c_v6 = st.columns(2)
-                                    with c_v5: ed_v_pt = st.text_input("上氣囊加壓壓力 (kgf/cm²)", value=v_defs.get("上氣囊加壓壓力 (kgf/cm²)", ""), key="ed_v_pt")
-                                    with c_v6: ed_v_tpt = st.text_input("上氣囊加壓時間 (sec)", value=v_defs.get("上氣囊加壓時間 (sec)", ""), key="ed_v_tpt")
+                                    with c_v5: ed_v_pt = st.text_input("上氣囊加壓壓力 (kgf/cm²)", value=v_defs.get("上氣囊加壓壓力 (kgf/cm²)", ""), key=f"ed_v_pt_{edit_d_id}")
+                                    with c_v6: ed_v_tpt = st.text_input("上氣囊加壓時間 (sec)", value=v_defs.get("上氣囊加壓時間 (sec)", ""), key=f"ed_v_tpt_{edit_d_id}")
                                     
                                     st.write("---")
-                                    ed_v_dly_b = st.text_input("下加壓延遲時間 (sec)", value=v_defs.get("下加壓延遲時間 (sec)", ""), key="ed_v_db")
-                                    ed_v_tdrop_b = st.text_input("下硅膠墊垂落時間 (sec)", value=v_defs.get("下硅膠墊垂落時間 (sec)", ""), key="ed_v_tdb")
+                                    ed_v_dly_b = st.text_input("下加壓延遲時間 (sec)", value=v_defs.get("下加壓延遲時間 (sec)", ""), key=f"ed_v_db_{edit_d_id}")
+                                    ed_v_tdrop_b = st.text_input("下硅膠墊垂落時間 (sec)", value=v_defs.get("下硅膠墊垂落時間 (sec)", ""), key=f"ed_v_tdb_{edit_d_id}")
                                     c_v7, c_v8 = st.columns(2)
-                                    with c_v7: ed_v_pb = st.text_input("下加壓壓力 (kgf/cm²)", value=v_defs.get("下加壓壓力 (kgf/cm²)", ""), key="ed_v_pb")
-                                    with c_v8: ed_v_tpb = st.text_input("下加壓時間 (sec)", value=v_defs.get("下加壓時間 (sec)", ""), key="ed_v_tpb")
+                                    with c_v7: ed_v_pb = st.text_input("下加壓壓力 (kgf/cm²)", value=v_defs.get("下加壓壓力 (kgf/cm²)", ""), key=f"ed_v_pb_{edit_d_id}")
+                                    with c_v8: ed_v_tpb = st.text_input("下加壓時間 (sec)", value=v_defs.get("下加壓時間 (sec)", ""), key=f"ed_v_tpb_{edit_d_id}")
                             else:
                                 pre_defs = unpack_params(row_dict.get('Pre_Lam', ''))
                                 with st.expander("📍 預貼機參數", expanded=True):
                                     c_p1, c_p2 = st.columns(2)
-                                    with c_p1: ed_pre_t = st.text_input("預貼溫度 (℃)", value=pre_defs.get("預貼溫度 (℃)", ""), key="ed_p_t")
-                                    with c_p2: ed_pre_s = st.text_input("預貼速度 (m/min)", value=pre_defs.get("預貼速度 (m/min)", ""), key="ed_p_s")
+                                    with c_p1: ed_pre_t = st.text_input("預貼溫度 (℃)", value=pre_defs.get("預貼溫度 (℃)", ""), key=f"ed_p_t_{edit_d_id}")
+                                    with c_p2: ed_pre_s = st.text_input("預貼速度 (m/min)", value=pre_defs.get("預貼速度 (m/min)", ""), key=f"ed_p_s_{edit_d_id}")
                                     c_p3, c_p4 = st.columns(2)
-                                    with c_p3: ed_pre_p = st.text_input("預貼壓力 (MPa)", value=pre_defs.get("預貼壓力 (MPa)", ""), key="ed_p_p")
-                                    with c_p4: ed_pre_m = st.text_input("前後留邊量 (前mm / 後mm)", value=pre_defs.get("前後留邊量", ""), key="ed_p_m")
+                                    with c_p3: ed_pre_p = st.text_input("預貼壓力 (MPa)", value=pre_defs.get("預貼壓力 (MPa)", ""), key=f"ed_p_p_{edit_d_id}")
+                                    with c_p4: ed_pre_m = st.text_input("前後留邊量 (前mm / 後mm)", value=pre_defs.get("前後留邊量", ""), key=f"ed_p_m_{edit_d_id}")
                                         
-                                ed_l1_dict = render_lam_inputs("1st 壓模機", "el1", "edit", unpack_params(row_dict.get('Lam_1st', '')))
-                                ed_l2_dict = render_lam_inputs("2nd 壓模機", "el2", "edit", unpack_params(row_dict.get('Lam_2nd', '')))
-                                ed_l3_dict = render_lam3_inputs("3rd 壓模機", "el3", "edit", unpack_params(row_dict.get('Lam_3rd', '')))
+                                ed_l1_dict = render_lam_inputs("1st 壓模機", "el1", edit_d_id, unpack_params(row_dict.get('Lam_1st', '')))
+                                ed_l2_dict = render_lam_inputs("2nd 壓模機", "el2", edit_d_id, unpack_params(row_dict.get('Lam_2nd', '')))
+                                ed_l3_dict = render_lam3_inputs("3rd 壓模機", "el3", edit_d_id, unpack_params(row_dict.get('Lam_3rd', '')))
                             
                             st.write("---")
                             
                             c_q1, c_q2 = st.columns(2)
-                            with c_q1: ed_qty = st.text_input("壓合數量 (片/次)", value=str(row_dict.get('Qty', '')), key="ed_qty")
+                            with c_q1: ed_qty = st.text_input("壓合數量 (片/次)", value=str(row_dict.get('Qty', '')), key=f"ed_qty_{edit_d_id}")
                             
                             eval_opts = ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"]
                             old_eval = str(row_dict.get('Self_Eval', ''))
                             e_idx = eval_opts.index(old_eval) if old_eval in eval_opts else 0
-                            with c_q2: ed_eval = st.selectbox("內部自評結果", eval_opts, index=e_idx, key="ed_eval")
+                            with c_q2: ed_eval = st.selectbox("內部自評結果", eval_opts, index=e_idx, key=f"ed_eval_{edit_d_id}")
                             
-                            ed_remark = st.text_area("備註 (測試變動說明、具體異常)", value=str(row_dict.get('Remarks', '')), key="ed_rmk")
-                            ed_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", value=str(row_dict.get('Feedback', '')), key="ed_fb")
-                            ed_upload = st.file_uploader("🖼️ 更新測試照片 (選填，若無上傳將保留舊照片)", type=['jpg', 'png', 'jpeg'], key="ed_photo")
+                            ed_remark = st.text_area("備註 (測試變動說明、具體異常)", value=str(row_dict.get('Remarks', '')), key=f"ed_rmk_{edit_d_id}")
+                            ed_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", value=str(row_dict.get('Feedback', '')), key=f"ed_fb_{edit_d_id}")
+                            ed_upload = st.file_uploader("🖼️ 更新測試照片 (選填，若無上傳將保留舊照片)", type=['jpg', 'png', 'jpeg'], key=f"ed_photo_{edit_d_id}")
                             
-                            if st.form_submit_button("💾 覆蓋更新實驗紀錄"):
+                            if st.form_submit_button("💾 覆蓋更新實驗紀錄", key=f"btn_ed_{edit_d_id}"):
                                 with st.spinner("打包與更新雲端資料庫中..."):
                                     new_photo_url = upload_image(ed_upload, f"{edit_d_id}_edit.jpg") if ed_upload else str(row_dict.get('Photo_URL', ''))
                                     
