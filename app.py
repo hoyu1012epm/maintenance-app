@@ -15,16 +15,21 @@ tz_tw = timezone(timedelta(hours=8))
 # --- 📌 登入與閒置計時記憶體 ---
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
+if "emp_id" not in st.session_state:
     st.session_state.emp_id = ""
+if "user_name" not in st.session_state:
     st.session_state.user_name = ""
+if "role" not in st.session_state:
     st.session_state.role = ""
+if "must_change_pw" not in st.session_state:
     st.session_state.must_change_pw = False
+if "last_active" not in st.session_state:
     st.session_state.last_active = datetime.now(tz_tw)
 if "form_key" not in st.session_state:
     st.session_state.form_key = 0
 if "success_msg" not in st.session_state:
     st.session_state.success_msg = ""
-
+    
 # 📌 你的 Google Apps Script 專屬接收站網址
 GAS_URL = "https://script.google.com/macros/s/AKfycbxEVcNlZjjFEmkQmH8Ft-P8mVTSQllsfFF0Khf4YE8lmuOvRQBU8lzocmFs04oMm6g5/exec"
 
