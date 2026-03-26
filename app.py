@@ -231,7 +231,7 @@ else:
                     st.download_button("📥 下載實驗離線版", data=df_demo.to_csv(index=False).encode('utf-8-sig'), file_name=f"實驗紀錄_{datetime.now(tz_tw).strftime('%Y%m%d')}.csv", mime="text/csv")
         
         st.write("---")
-        # 📌 全新加入的全域重新整理按鈕！
+        # 📌 全域重新整理按鈕
         if st.button("🔄 重新整理最新資料", use_container_width=True):
             st.cache_data.clear()
             st.rerun()
@@ -248,7 +248,6 @@ else:
         with col2:
             st.markdown(f"<h1 style='margin-top: -15px;'>{'設備維修知識庫' if app_mode == '🔧 現場維修系統' else 'DEMO 實驗資料庫'}</h1>", unsafe_allow_html=True)
             
-        # 📌 成功訊息置頂顯示 (只針對修改表單)
         if st.session_state.success_msg:
             st.success(st.session_state.success_msg)
             st.session_state.success_msg = ""
@@ -380,7 +379,7 @@ else:
                     row_dict = row_data.iloc[0].to_dict()
                     
                     st.success(f"✅ 成功載入單號：{edit_m_id} (若不需修改照片請留空)")
-                    with st.form(f"edit_m_form_{edit_m_id}"):
+                    with st.form(f"edit_m_form_{edit_m_id}", clear_on_submit=True):
                         try: old_date = datetime.strptime(str(row_dict.get('Date', '')), "%Y-%m-%d").date()
                         except: old_date = datetime.now(tz_tw).date()
                         
@@ -415,8 +414,7 @@ else:
                                 sheet_maint.update(values=[new_m_row], range_name=f"A{cell.row}:I{cell.row}")
                                 st.cache_data.clear()
                                 edit_m_msg.success(f"✅ 單號 {edit_m_id} 更新成功！")
-
-    # ==========================================
+                                # ==========================================
     # 模式 B：DEMO 實驗紀錄
     # ==========================================
     elif app_mode == "🧪 DEMO 實驗紀錄":
@@ -684,7 +682,7 @@ else:
                     row_dict = row_data.iloc[0].to_dict()
                     
                     st.success(f"✅ 成功載入實驗單號：{edit_d_id} (若不需修改照片請留空)")
-                    with st.form(f"edit_d_form_{edit_d_id}"):
+                    with st.form(f"edit_d_form_{edit_d_id}", clear_on_submit=True):
                         try: old_date = datetime.strptime(str(row_dict.get('Date', '')), "%Y-%m-%d").date()
                         except: old_date = datetime.now(tz_tw).date()
                         
