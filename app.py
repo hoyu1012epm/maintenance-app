@@ -876,7 +876,7 @@ else:
                             default_hash = hash_pw("123")
                             sheet_users.append_row([str(new_id), str(new_name), default_hash, new_role, "TRUE"])
                             st.cache_data.clear()
-                            admin_add_msg.success(f"✅ 成功新增人員：{new_name}！請請他用預設密碼 123 登入。")
+                            admin_add_msg.success(f"✅ 成功新增人員：{new_name}！請他用預設密碼 123 登入。")
                             
         with tab_a3:
             st.subheader("協助人員重置密碼")
