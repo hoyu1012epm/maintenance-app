@@ -841,10 +841,19 @@ else:
         
         users_df = load_data("users")
         
-        tab_a1, tab_a2, tab_a3 = st.tabs(["👥 帳號總覽", "➕ 新增人員", "🔄 重置密碼"])
+        # 📌 新增了第 4 個分頁：刪除帳號
+        tab_a1, tab_a2, tab_a3, tab_a4 = st.tabs(["👥 帳號總覽", "➕ 新增人員", "🔄 重置密碼", "❌ 刪除帳號"])
         
         with tab_a1:
-            st.subheader("目前系統帳號清單")
+            c_header, c_btn = st.columns([4, 1])
+            with c_header:
+                st.subheader("目前系統帳號清單")
+            with c_btn:
+                # 📌 手動重新整理按鈕
+                if st.button("🔄 重新整理清單", use_container_width=True):
+                    st.cache_data.clear()
+                    st.rerun()
+                    
             # 隱藏密碼亂碼欄位，讓畫面乾淨
             display_df = users_df[['EPM_ID', 'Name', 'Role', 'Is_First_Login']].copy()
             display_df.columns = ['工號 (EPM_ID)', '姓名', '權限等級', '是否為首次登入 (需改密碼)']
@@ -854,7 +863,8 @@ else:
             st.subheader("新增系統使用者")
             with st.form("add_user_form", clear_on_submit=True):
                 c1, c2 = st.columns(2)
-                with c1: new_id = st.text_input("工號 (EPM_ID)", placeholder="例如: E002")
+                # 📌 移除了 placeholder 範例
+                with c1: new_id = st.text_input("工號 (EPM_ID)")
                 with c2: new_name = st.text_input("姓名", placeholder="請輸入同事姓名")
                 
                 new_role = st.selectbox("權限等級", ["User", "Admin"])
@@ -871,7 +881,9 @@ else:
                             default_hash = hash_pw("123")
                             sheet_users.append_row([str(new_id), str(new_name), default_hash, new_role, "TRUE"])
                             st.cache_data.clear()
-                            admin_add_msg.success(f"✅ 成功新增人員：{new_name}！請請他用預設密碼 123 登入。")
+                            # 📌 寫入暫存成功訊息並瞬間強制重整畫面
+                            st.session_state.success_msg = f"✅ 成功新增人員：{new_name}！請請他用預設密碼 123 登入。"
+                            st.rerun()
                             
         with tab_a3:
             st.subheader("協助人員重置密碼")
@@ -889,4 +901,32 @@ else:
                         sheet_users.update_cell(cell.row, 3, hash_pw("123"))
                         sheet_users.update_cell(cell.row, 5, "TRUE")
                         st.cache_data.clear()
-                        admin_reset_msg.success(f"✅ 成功將 {target_name} ({target_id}) 的密碼重置為 123！下次登入將強制修改。")
+                        # 📌 寫入暫存成功訊息並瞬間強制重整畫面
+                        st.session_state.success_msg = f"✅ 成功將 {target_name} ({target_id}) 的密碼重置為 123！下次登入將強制修改。"
+                        st.rerun()
+
+        with tab_a4:
+            st.subheader("刪除系統帳號")
+            st.warning("⚠️ 注意：刪除帳號後，該人員將無法再登入系統，但其過去填寫的歷史紀錄仍會保留在資料庫中。")
+            with st.form("del_user_form"):
+                del_opts = [f"{r['EPM_ID']} - {r['Name']}" for idx, r in users_df.iterrows()]
+                del_target = st.selectbox("🗑️ 請選擇要刪除的人員", del_opts)
+                
+                st.write("---")
+                admin_del_msg = st.empty()
+                if st.form_submit_button("❌ 永久刪除此帳號"):
+                    target_id = del_target.split(" - ")[0]
+                    target_name = del_target.split(" - ")[1]
+                    
+                    # 🛡️ 防呆機制：管理員不能刪除自己
+                    if target_id == st.session_state.emp_id:
+                        admin_del_msg.error("⛔ 系統安全限制：您不能刪除您自己目前登入的帳號！")
+                    else:
+                        with st.spinner(f"正在永久刪除 {target_name} 的帳號..."):
+                            cell = sheet_users.find(target_id, in_column=1)
+                            # 📌 透過 API 刪除整列資料
+                            sheet_users.delete_rows(cell.row)
+                            st.cache_data.clear()
+                            # 📌 寫入暫存成功訊息並瞬間強制重整畫面
+                            st.session_state.success_msg = f"✅ 已成功永久刪除 {target_name} ({target_id}) 的系統帳號。"
+                            st.rerun()
