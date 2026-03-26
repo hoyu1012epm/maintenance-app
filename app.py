@@ -61,7 +61,7 @@ def format_params_html(raw_text):
         valid_lines.append(line)
     return "<br>".join(valid_lines) if valid_lines else ""
 
-# 📌 壓模機輸入 UI (新增與修改共用)
+# 📌 壓模機輸入 UI
 def render_lam_inputs(stage_name, key_prefix, fk, defaults=None):
     defaults = defaults or {}
     with st.expander(f"📍 {stage_name} 參數"):
@@ -155,8 +155,8 @@ if not st.session_state.logged_in:
     st.markdown("<p style='text-align: center; color: #666;'>請輸入您的工號與密碼以登入系統</p>", unsafe_allow_html=True)
     
     with st.form("login_form"):
-        # 📌 全面更新為 EPM_ID
-        emp_id = st.text_input("工號 (EPM_ID)", placeholder="例如: E001")
+        # 📌 移除 placeholder 範例
+        emp_id = st.text_input("工號 (EPM_ID)")
         password = st.text_input("密碼", type="password")
         submitted = st.form_submit_button("登入", use_container_width=True)
         
@@ -238,6 +238,11 @@ else:
             except: st.title("⚙️") 
         with col2:
             st.markdown(f"<h1 style='margin-top: -15px;'>{'設備維修知識庫' if app_mode == '🔧 現場維修系統' else 'DEMO 實驗資料庫'}</h1>", unsafe_allow_html=True)
+            
+        # 📌 成功訊息置頂顯示，保證不漏接！
+        if st.session_state.success_msg:
+            st.success(st.session_state.success_msg)
+            st.session_state.success_msg = ""
 
     # ==========================================
     # 模式 A：現場維修系統
@@ -322,10 +327,6 @@ else:
                             st.session_state.form_key += 1
                             st.rerun()
 
-            if st.session_state.success_msg:
-                st.success(st.session_state.success_msg)
-                st.session_state.success_msg = ""
-
         with tab3:
             st.subheader("📈 維修數據統計看板")
             if not df.empty:
@@ -352,7 +353,6 @@ else:
 
         with tab4:
             st.subheader("✏️ 修改我的維修紀錄")
-            # 📌 智慧下拉選單
             if st.session_state.role == 'Admin':
                 my_df = df.copy()
                 st.info("👑 管理員模式：您可以看到並修改所有人的紀錄。")
@@ -403,7 +403,8 @@ else:
                                 cell = sheet_maint.find(edit_m_id, in_column=1)
                                 sheet_maint.update(values=[new_m_row], range_name=f"A{cell.row}:I{cell.row}")
                                 st.cache_data.clear()
-                                st.success(f"✅ 單號 {edit_m_id} 更新成功！請重新載入頁面。")
+                                st.session_state.success_msg = f"✅ 單號 {edit_m_id} 更新成功！"
+                                st.rerun()
                                 # ==========================================
     # 模式 B：DEMO 實驗紀錄
     # ==========================================
@@ -424,7 +425,6 @@ else:
 
             filtered_demo = df_d.copy()
             if not filtered_demo.empty:
-                # 📌 新增年月產生邏輯
                 try: filtered_demo['YearMonth'] = pd.to_datetime(filtered_demo['Date']).dt.strftime('%y/%m')
                 except: filtered_demo['YearMonth'] = "未知時間"
 
@@ -436,7 +436,6 @@ else:
                 if filter_film != "全部": filtered_demo = filtered_demo[filtered_demo['Film_Material'].astype(str) == filter_film]
                 
                 st.write("---")
-                # 📌 導入與維修一樣的資料夾展開分類
                 group_by_demo = st.radio("🗂️ 選擇展開分類方式：", ["依建立年月", "依客戶名稱", "依測試機台"], horizontal=True)
                 group_col_demo_map = {"依建立年月": "YearMonth", "依客戶名稱": "Customer", "依測試機台": "Equipment"}
                 group_col_d = group_col_demo_map[group_by_demo]
@@ -656,7 +655,6 @@ else:
 
         with tab_d4:
             st.subheader("✏️ 修改我的實驗紀錄")
-            # 📌 智慧下拉選單邏輯
             if st.session_state.role == 'Admin':
                 my_df_d = df_d.copy()
                 st.info("👑 管理員模式：您可以看到並修改所有人的紀錄。")
@@ -795,7 +793,8 @@ else:
                                 cell = sheet_demo.find(edit_d_id, in_column=1)
                                 sheet_demo.update(values=[new_d_row], range_name=f"A{cell.row}:R{cell.row}")
                                 st.cache_data.clear()
-                                st.success(f"✅ 實驗單號 {edit_d_id} 更新成功！請重新載入頁面。")
+                                st.session_state.success_msg = f"✅ 實驗單號 {edit_d_id} 更新成功！"
+                                st.rerun()
 
     # ==========================================
     # 模式 C：全新「產品厚度計算機」
