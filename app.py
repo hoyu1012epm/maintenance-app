@@ -145,6 +145,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# 📌 閒置 15 分鐘自動登出
 if st.session_state.logged_in:
     now = datetime.now(tz_tw)
     if now - st.session_state.last_active > timedelta(minutes=15):
@@ -154,6 +155,9 @@ if st.session_state.logged_in:
     else:
         st.session_state.last_active = now
 
+# ==========================================
+# 🔒 登入與密碼修改系統
+# ==========================================
 if not st.session_state.logged_in:
     st.markdown("<h2 style='text-align: center;'>🔐 設備維修與實驗知識庫</h2>", unsafe_allow_html=True)
     st.markdown("<p style='text-align: center; color: #666;'>請輸入您的工號與密碼以登入系統</p>", unsafe_allow_html=True)
@@ -182,7 +186,6 @@ if not st.session_state.logged_in:
                         if str(user_record.iloc[0]['Is_First_Login']).upper() == 'TRUE':
                             st.session_state.must_change_pw = True
                         else:
-                            # 📌 強化版登入時間紀錄 (使用 update_acell 直接鎖定 F 欄)
                             cell = sheet_users.find(str(emp_id), in_column=1)
                             login_time = datetime.now(tz_tw).strftime("%Y-%m-%d %H:%M:%S")
                             sheet_users.update_acell(f"F{cell.row}", login_time)
@@ -210,7 +213,6 @@ elif st.session_state.must_change_pw:
                     sheet_users.update_acell(f"C{cell.row}", hash_pw(new_pw))
                     sheet_users.update_acell(f"E{cell.row}", "FALSE")
                     
-                    # 📌 強化版登入時間紀錄 (強制改密碼後也寫入時間)
                     login_time = datetime.now(tz_tw).strftime("%Y-%m-%d %H:%M:%S")
                     sheet_users.update_acell(f"F{cell.row}", login_time)
                     
@@ -218,7 +220,11 @@ elif st.session_state.must_change_pw:
                     st.session_state.must_change_pw = False
                     st.success("✅ 密碼修改成功！正在為您導向主系統...")
                     st.rerun()
-                    else:
+
+# ==========================================
+# 🔓 主系統區塊
+# ==========================================
+else:
     df_maint = load_data("maint")
     df_demo = load_data("demo")
     
@@ -262,6 +268,9 @@ elif st.session_state.must_change_pw:
             st.success(st.session_state.success_msg)
             st.session_state.success_msg = ""
 
+    # ==========================================
+    # 模式 A：現場維修系統
+    # ==========================================
     if app_mode == "🔧 現場維修系統":
         tab1, tab2, tab3, tab4 = st.tabs(["🔍 查詢紀錄", "➕ 新增紀錄", "📊 數據分析", "✏️ 修改我的紀錄"])
         
@@ -408,7 +417,11 @@ elif st.session_state.must_change_pw:
                                 sheet_maint.update(values=[new_m_row], range_name=f"A{cell.row}:I{cell.row}")
                                 st.cache_data.clear()
                                 edit_m_msg.success(f"✅ 單號 {edit_m_id} 更新成功！")
-                                elif app_mode == "🧪 DEMO 實驗紀錄":
+
+    # ==========================================
+    # 模式 B：DEMO 實驗紀錄
+    # ==========================================
+    elif app_mode == "🧪 DEMO 實驗紀錄":
         tab_d1, tab_d2, tab_d3, tab_d4 = st.tabs(["🔍 參數查詢", "➕ 新增紀錄 (NT+CVP)", "➕ 新增紀錄 (V-160)", "✏️ 修改我的紀錄"])
 
         with tab_d1:
@@ -850,3 +863,125 @@ elif st.session_state.must_change_pw:
                                 sheet_demo.update(values=[new_d_row], range_name=f"A{cell.row}:R{cell.row}")
                                 st.cache_data.clear()
                                 edit_d_msg.success(f"✅ 實驗單號 {edit_d_id} 更新成功！")
+
+    elif app_mode == "🧮 產品厚度計算機":
+        st.markdown("## 🧮 產品厚度計算機")
+        st.info("💡 請在下方輸入框填寫測量數值，系統將即時為您運算。**黃色背景**為系統自動計算的結果，**綠色框框**即為應輸入至機台 3rd 的目標產品厚度。")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("### 【1st 前】測量與設定")
+            val_1 = st.number_input("1. 板材厚度 (不含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+            val_2 = st.number_input("2. 板材厚度 (含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+            val_3 = val_2 - val_1
+            st.markdown(f"<div class='calc-yellow'>3. 線路、銅柱高：{val_3:.2f}</div>", unsafe_allow_html=True)
+            st.write("---")
+            val_4 = st.number_input("4. COVER 厚度 (僅供紀錄)", value=0.00, step=0.01, format="%.2f")
+            val_5 = st.number_input("5. 膜材 厚度", value=0.00, step=0.01, format="%.2f")
+            val_6 = st.number_input("6. PET 厚度", value=0.00, step=0.01, format="%.2f")
+            val_7 = val_1 + val_5 + val_6
+            val_8 = val_2 + val_5 + val_6
+            st.markdown(f"<div class='calc-yellow'>7. 壓合前總厚度 (不含)：{val_7:.2f}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='calc-yellow'>8. 壓合前總厚度 (含)：{val_8:.2f}</div>", unsafe_allow_html=True)
+
+        with col2:
+            st.markdown("### 【1st 後】測量與計算")
+            val_9 = st.number_input("9. 板材厚度 (不含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+            gap_9 = val_7 - val_9 if val_9 > 0 else 0.0
+            st.markdown(f"<div class='calc-yellow'>壓合前後差距 (7 減 9)：{gap_9:.2f}</div>", unsafe_allow_html=True)
+            st.write("---")
+            val_10 = st.number_input("10. 板材厚度 (含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+            gap_10 = val_8 - val_10 if val_10 > 0 else 0.0
+            st.markdown(f"<div class='calc-yellow'>壓合前後差距 (8 減 10)：{gap_10:.2f}</div>", unsafe_allow_html=True)
+            val_11 = val_5 - val_3 - gap_10 if val_10 > 0 else 0.0
+            st.write("---")
+            st.markdown(f"""<div class="calc-green">🎯 輸入 3rd 產品厚度 (對應第 10 項)：{val_10:.2f}</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="calc-yellow" style="margin-top:15px; border-left: 5px solid #FF8F00;">11. 膜尚可壓縮量：{val_11:.2f}</div>""", unsafe_allow_html=True)
+
+    elif app_mode == "👑 管理員後台":
+        st.markdown("## 👑 管理員專屬後台")
+        st.info("💡 歡迎進入系統核心控制台！您可以在此總覽所有帳號狀態、新增實驗室同仁，或協助忘記密碼的人員重置密碼。")
+        
+        users_df = load_data("users")
+        
+        tab_a1, tab_a2, tab_a3, tab_a4 = st.tabs(["👥 帳號總覽", "➕ 新增人員", "🔄 重置密碼", "❌ 刪除帳號"])
+        
+        with tab_a1:
+            c_header, c_btn = st.columns([3, 1])
+            with c_header:
+                st.subheader("目前系統帳號清單")
+            with c_btn:
+                if st.button("🔄 重新整理", use_container_width=True):
+                    st.cache_data.clear()
+                    st.rerun()
+            
+            display_df = users_df.copy()
+            if 'Last_Login' not in display_df.columns:
+                display_df['Last_Login'] = ""
+            display_df['Last_Login'] = display_df['Last_Login'].fillna("")
+            
+            display_df = display_df[['EPM_ID', 'Name', 'Role', 'Last_Login', 'Is_First_Login']]
+            display_df.columns = ['工號 (EPM_ID)', '姓名', '權限等級', '最後登入時間', '是否為首次登入 (需改密碼)']
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+            
+        with tab_a2:
+            st.subheader("新增系統使用者")
+            with st.form("add_user_form", clear_on_submit=True):
+                c1, c2 = st.columns(2)
+                with c1: new_id = st.text_input("工號 (EPM_ID)")
+                with c2: new_name = st.text_input("姓名")
+                
+                new_role = st.selectbox("權限等級", ["User", "Admin"])
+                
+                st.write("---")
+                admin_add_msg = st.empty()
+                if st.form_submit_button("➕ 建立帳號 (預設密碼為 123)"):
+                    if not new_id or not new_name:
+                        admin_add_msg.error("⚠️ 請填寫工號與姓名！")
+                    elif str(new_id) in users_df['EPM_ID'].astype(str).values:
+                        admin_add_msg.error(f"⛔ 工號 {new_id} 已經存在，請確認是否重複建立！")
+                    else:
+                        with st.spinner("建立帳號中..."):
+                            default_hash = hash_pw("123")
+                            sheet_users.append_row([str(new_id), str(new_name), default_hash, new_role, "TRUE", ""])
+                            st.cache_data.clear()
+                            admin_add_msg.success(f"✅ 成功新增人員：{new_name}！請請他用預設密碼 123 登入。")
+                            
+        with tab_a3:
+            st.subheader("協助人員重置密碼")
+            with st.form("reset_pw_form", clear_on_submit=True):
+                reset_opts = [f"{r['EPM_ID']} - {r['Name']}" for idx, r in users_df.iterrows()]
+                reset_target = st.selectbox("🔍 請選擇要重置密碼的人員", reset_opts)
+                
+                st.write("---")
+                admin_reset_msg = st.empty()
+                if st.form_submit_button("🔄 重置該員密碼為 123"):
+                    target_id = reset_target.split(" - ")[0]
+                    target_name = reset_target.split(" - ")[1]
+                    with st.spinner(f"正在重置 {target_name} 的密碼..."):
+                        cell = sheet_users.find(target_id, in_column=1)
+                        sheet_users.update_acell(f"C{cell.row}", hash_pw("123"))
+                        sheet_users.update_acell(f"E{cell.row}", "TRUE")
+                        st.cache_data.clear()
+                        admin_reset_msg.success(f"✅ 成功將 {target_name} ({target_id}) 的密碼重置為 123！下次登入將強制修改。")
+
+        with tab_a4:
+            st.subheader("刪除系統帳號")
+            st.warning("⚠️ 注意：刪除帳號後，該人員將無法再登入系統，但其過去填寫的歷史紀錄仍會保留在資料庫中。")
+            with st.form("del_user_form", clear_on_submit=True):
+                del_opts = [f"{r['EPM_ID']} - {r['Name']}" for idx, r in users_df.iterrows()]
+                del_target = st.selectbox("🗑️ 請選擇要刪除的人員", del_opts)
+                
+                st.write("---")
+                admin_del_msg = st.empty()
+                if st.form_submit_button("❌ 永久刪除此帳號"):
+                    target_id = del_target.split(" - ")[0]
+                    target_name = del_target.split(" - ")[1]
+                    
+                    if target_id == st.session_state.emp_id:
+                        admin_del_msg.error("⛔ 系統安全限制：您不能刪除您自己目前登入的帳號！")
+                    else:
+                        with st.spinner(f"正在永久刪除 {target_name} 的帳號..."):
+                            cell = sheet_users.find(target_id, in_column=1)
+                            sheet_users.delete_rows(cell.row)
+                            st.cache_data.clear()
+                            admin_del_msg.success(f"✅ 已成功永久刪除 {target_name} ({target_id}) 的系統帳號。")
