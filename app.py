@@ -901,9 +901,15 @@ else:
                 if st.button("🔄 重新整理", use_container_width=True):
                     st.cache_data.clear()
                     st.rerun()
-                    
-            display_df = users_df[['EPM_ID', 'Name', 'Role', 'Is_First_Login']].copy()
-            display_df.columns = ['工號 (EPM_ID)', '姓名', '權限等級', '是否為首次登入 (需改密碼)']
+            
+            display_df = users_df.copy()
+            # 📌 確保有 Last_Login 欄位，以防剛加欄位時系統找不到而報錯
+            if 'Last_Login' not in display_df.columns:
+                display_df['Last_Login'] = ""
+                
+            # 只單純抓取並顯示最後登入時間
+            display_df = display_df[['EPM_ID', 'Name', 'Role', 'Last_Login', 'Is_First_Login']]
+            display_df.columns = ['工號 (EPM_ID)', '姓名', '權限等級', '最後登入時間', '是否為首次登入 (需改密碼)']
             st.dataframe(display_df, use_container_width=True, hide_index=True)
             
         with tab_a2:
