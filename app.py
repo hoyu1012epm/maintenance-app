@@ -203,6 +203,13 @@ elif st.session_state.must_change_pw:
                     cell = sheet_users.find(st.session_state.emp_id, in_column=1)
                     sheet_users.update_cell(cell.row, 3, hash_pw(new_pw))
                     sheet_users.update_cell(cell.row, 5, "FALSE")
+                    
+                    # 📌 完美補強：首次登入改完密碼後，同時寫入登入時間！
+                    try:
+                        login_time = datetime.now(tz_tw).strftime("%Y-%m-%d %H:%M:%S")
+                        sheet_users.update_cell(cell.row, 6, login_time)
+                    except: pass
+                    
                     st.cache_data.clear()
                     st.session_state.must_change_pw = False
                     st.success("✅ 密碼修改成功！正在為您導向主系統...")
