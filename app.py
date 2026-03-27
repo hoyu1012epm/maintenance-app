@@ -358,7 +358,7 @@ else:
                             
                             with c_action:
                                 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                                st.checkbox("🔲 勾選此筆", key=f"chk_export_m_{row.get('Log_ID')}")
+                                st.checkbox("勾選此筆", key=f"chk_export_m_{row.get('Log_ID')}")
                                 csv_data = pd.DataFrame([row]).to_csv(index=False).encode('utf-8-sig')
                                 st.download_button(label="📥 單筆匯出", data=csv_data, file_name=f"{row.get('Log_ID')}_Report.csv", mime="text/csv", key=f"dl_m_{row.get('Log_ID')}")
                                 
@@ -576,7 +576,7 @@ else:
                                 
                             with c_action:
                                 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                                st.checkbox("🔲 勾選此筆", key=f"chk_export_{row.get('Log_ID')}")
+                                st.checkbox("勾選此筆", key=f"chk_export_{row.get('Log_ID')}")
                                 csv_data = pd.DataFrame([row]).to_csv(index=False).encode('utf-8-sig')
                                 st.download_button(label="📥 單筆匯出", data=csv_data, file_name=f"{row.get('Log_ID')}_Report.csv", mime="text/csv", key=f"dl_d_{row.get('Log_ID')}")
                                 
