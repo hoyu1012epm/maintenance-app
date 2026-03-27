@@ -138,7 +138,7 @@ def load_data(mode):
 
 st.markdown("""
 <style>
-.glide-card { background-color: #ffffff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 12px; border-left: 6px solid #FFA726; }
+.glide-card { background-color: #ffffff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 5px; border-left: 6px solid #FFA726; }
 .glide-title { font-size: 16px; font-weight: 700; color: #333333; margin-bottom: 4px; }
 .glide-subtitle { font-size: 14px; color: #555555; margin-bottom: 10px; line-height: 1.4; }
 .glide-tag { background-color: #FFF3E0; color: #E65100; padding: 3px 8px; border-radius: 12px; font-size: 11px; display: inline-block; margin-right: 4px; margin-bottom: 6px; }
@@ -294,6 +294,33 @@ else:
                     filtered_df = filtered_df[mask]
 
                 st.write("---")
+                
+                # 📌 現場維修：批次匯出購物車
+                st.markdown("#### 📦 批次匯出區")
+                selected_batch_ids_m = [row['Log_ID'] for idx, row in filtered_df.iterrows() if st.session_state.get(f"chk_export_m_{row['Log_ID']}", False)]
+                if selected_batch_ids_m:
+                    batch_df_m = filtered_df[filtered_df['Log_ID'].isin(selected_batch_ids_m)]
+                    csv_batch_m = batch_df_m.to_csv(index=False).encode('utf-8-sig')
+                    
+                    c_info, c_dl, c_clear = st.columns([2, 2, 1])
+                    with c_info: st.success(f"✅ 目前已選取 **{len(selected_batch_ids_m)}** 筆紀錄")
+                    with c_dl:
+                        st.download_button(
+                            label=f"📥 一鍵匯出 {len(selected_batch_ids_m)} 筆報告", 
+                            data=csv_batch_m, file_name=f"Maint_BatchReport_{datetime.now(tz_tw).strftime('%Y%m%d_%H%M')}.csv", 
+                            mime="text/csv", type="primary", use_container_width=True
+                        )
+                    with c_clear:
+                        if st.button("🗑️ 取消全選", key="clr_m", use_container_width=True):
+                            for idx, r in filtered_df.iterrows():
+                                if f"chk_export_m_{r['Log_ID']}" in st.session_state:
+                                    st.session_state[f"chk_export_m_{r['Log_ID']}"] = False
+                            st.rerun()
+                else:
+                    st.info("💡 請在下方展開紀錄夾，勾選您需要匯出的卡片，此處將自動出現下載按鈕！")
+
+                st.write("---")
+
                 group_by_option = st.radio("🗂️ 選擇展開分類方式：", ["依建立年月", "依客戶與廠區", "依設備機型", "依設備部件"], horizontal=True)
                 group_col_map = {"依建立年月": "YearMonth", "依客戶與廠區": "Customer", "依設備機型": "Machine_Model", "依設備部件": "Component"}
                 group_col = group_col_map[group_by_option]
@@ -310,24 +337,33 @@ else:
                     group_data = filtered_df[filtered_df[group_col] == group_name]
                     with st.expander(f"📁 {display_name} (共 {len(group_data)} 筆)"):
                         for index, row in group_data.iterrows():
-                            csv_data = pd.DataFrame([row]).to_csv(index=False).encode('utf-8-sig')
-                            st.download_button(label=f"📥 下載此筆報告 ({row.get('Log_ID')})", data=csv_data, file_name=f"{row.get('Log_ID')}_Report.csv", mime="text/csv", key=f"dl_m_{row.get('Log_ID')}")
+                            # 📌 維修卡片 + 虛線分隔排版
+                            c_card, c_action = st.columns([5, 2])
+                            with c_card:
+                                photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
+                                val_issue = str(row.get('Issue_Desc', '')).replace('\r', '').replace('\n', '<br>')
+                                val_solution = str(row.get('Solution', '')).replace('\r', '').replace('\n', '<br>')
+                                st.markdown(f"""
+                                <div class="glide-card">
+                                <div class="glide-title">{row.get('Component', '')} <span style="font-size:12px; color:#999;">(單號: {row.get('Log_ID', '')})</span></div>
+                                <div class="glide-tag">📅 {row.get('Date', '')}</div>
+                                <div class="glide-tag">🏢 {row.get('Customer', '')}</div>
+                                <div class="glide-tag">⚙️ {row.get('Machine_Model', '')}</div>
+                                <div class="glide-tag" style="background-color:#E3F2FD; color:#1565C0;">👤 {row.get('Engineer', '')}</div>
+                                <div class="glide-subtitle"><b>狀況：</b><br>{val_issue}</div>
+                                <div class="glide-solution"><b>💡 解法：</b><br>{val_solution}</div>
+                                {photo_html}
+                                </div>
+                                """, unsafe_allow_html=True)
                             
-                            photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
-                            val_issue = str(row.get('Issue_Desc', '')).replace('\r', '').replace('\n', '<br>')
-                            val_solution = str(row.get('Solution', '')).replace('\r', '').replace('\n', '<br>')
-                            st.markdown(f"""
-    <div class="glide-card">
-    <div class="glide-title">{row.get('Component', '')} <span style="font-size:12px; color:#999;">(單號: {row.get('Log_ID', '')})</span></div>
-    <div class="glide-tag">📅 {row.get('Date', '')}</div>
-    <div class="glide-tag">🏢 {row.get('Customer', '')}</div>
-    <div class="glide-tag">⚙️ {row.get('Machine_Model', '')}</div>
-    <div class="glide-tag" style="background-color:#E3F2FD; color:#1565C0;">👤 {row.get('Engineer', '')}</div>
-    <div class="glide-subtitle"><b>狀況：</b><br>{val_issue}</div>
-    <div class="glide-solution"><b>💡 解法：</b><br>{val_solution}</div>
-    {photo_html}
-    </div>
-    """, unsafe_allow_html=True)
+                            with c_action:
+                                st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                                st.checkbox("🔲 勾選此筆", key=f"chk_export_m_{row.get('Log_ID')}")
+                                csv_data = pd.DataFrame([row]).to_csv(index=False).encode('utf-8-sig')
+                                st.download_button(label="📥 單筆匯出", data=csv_data, file_name=f"{row.get('Log_ID')}_Report.csv", mime="text/csv", key=f"dl_m_{row.get('Log_ID')}")
+                                
+                            st.markdown("<hr style='margin: 10px 0px 30px 0px; border: 0; border-top: 2px dashed #ccc;'>", unsafe_allow_html=True)
+
             else:
                 st.warning("目前試算表中沒有資料喔！")
 
@@ -455,25 +491,24 @@ else:
                 if filter_film != "全部": filtered_demo = filtered_demo[filtered_demo['Film_Material'].astype(str) == filter_film]
                 
                 st.write("---")
-                # 📌 批次勾選匯出功能
-                st.markdown("#### 📦 批次匯出區")
-                selected_batch_ids = [row['Log_ID'] for idx, row in filtered_demo.iterrows() if st.session_state.get(f"chk_export_{row['Log_ID']}", False)]
                 
-                if selected_batch_ids:
-                    batch_df_d = filtered_demo[filtered_demo['Log_ID'].isin(selected_batch_ids)]
+                # 📌 實驗紀錄：批次匯出購物車
+                st.markdown("#### 📦 批次匯出區")
+                selected_batch_ids_d = [row['Log_ID'] for idx, row in filtered_demo.iterrows() if st.session_state.get(f"chk_export_{row['Log_ID']}", False)]
+                if selected_batch_ids_d:
+                    batch_df_d = filtered_demo[filtered_demo['Log_ID'].isin(selected_batch_ids_d)]
                     csv_batch_d = batch_df_d.to_csv(index=False).encode('utf-8-sig')
                     
                     c_info, c_dl, c_clear = st.columns([2, 2, 1])
-                    with c_info: st.success(f"✅ 目前已選取 **{len(selected_batch_ids)}** 筆紀錄")
+                    with c_info: st.success(f"✅ 目前已選取 **{len(selected_batch_ids_d)}** 筆紀錄")
                     with c_dl:
                         st.download_button(
-                            label=f"📥 一鍵匯出 {len(selected_batch_ids)} 筆報告", 
-                            data=csv_batch_d, 
-                            file_name=f"DEMO_BatchReport_{datetime.now(tz_tw).strftime('%Y%m%d_%H%M')}.csv", 
+                            label=f"📥 一鍵匯出 {len(selected_batch_ids_d)} 筆報告", 
+                            data=csv_batch_d, file_name=f"DEMO_BatchReport_{datetime.now(tz_tw).strftime('%Y%m%d_%H%M')}.csv", 
                             mime="text/csv", type="primary", use_container_width=True
                         )
                     with c_clear:
-                        if st.button("🗑️ 取消全選", use_container_width=True):
+                        if st.button("🗑️ 取消全選", key="clr_d", use_container_width=True):
                             for idx, r in filtered_demo.iterrows():
                                 if f"chk_export_{r['Log_ID']}" in st.session_state:
                                     st.session_state[f"chk_export_{r['Log_ID']}"] = False
@@ -497,21 +532,13 @@ else:
                     group_data = filtered_demo[filtered_demo[group_col_d] == group_name]
                     with st.expander(f"📁 {display_name} (共 {len(group_data)} 筆)"):
                         for index, row in group_data.iterrows():
-                            c_card, c_action = st.columns([6, 1])
-                            
-                            with c_action:
-                                st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                                st.checkbox("✅ 勾選此筆", key=f"chk_export_{row.get('Log_ID')}")
-                                csv_data = pd.DataFrame([row]).to_csv(index=False).encode('utf-8-sig')
-                                st.download_button(label="📥 單筆匯出", data=csv_data, file_name=f"{row.get('Log_ID')}_Report.csv", mime="text/csv", key=f"dl_d_{row.get('Log_ID')}")
-                            
+                            # 📌 實驗卡片 + 虛線分隔排版
+                            c_card, c_action = st.columns([5, 2])
                             with c_card:
                                 photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
                                 equip_name = str(row.get('Equipment', ''))
-                                
                                 sub_dict = {"板材類型": str(row.get('Substrate_Type', '')).strip(), "基板尺寸": str(row.get('Substrate_Size', '')).strip(), "膜材種類": str(row.get('Film_Material', '')).strip(), "膜材型號 / 厚度": str(row.get('Film_Model', '')).strip()}
                                 html_sub = format_params_html(pack_params(sub_dict))
-                                
                                 html_pre = format_params_html(row.get('Pre_Lam', ''))
                                 html_l1 = format_params_html(row.get('Lam_1st', ''))
                                 html_l2 = format_params_html(row.get('Lam_2nd', ''))
@@ -532,20 +559,29 @@ else:
                                 if not eval_result or eval_result == "nan": eval_result = "未評估"
 
                                 st.markdown(f"""
-                <div class="glide-card">
-                <div class="glide-title">🧪 測試機台: {equip_name if equip_name else '未填寫'} <span style="font-size:12px; color:#999;">(單號: {row.get('Log_ID', '')})</span></div>
-                <div class="glide-tag">📅 {row.get('Date', '')}</div>
-                <div class="glide-tag">🏢 {row.get('Customer', '')}</div>
-                <div class="glide-tag" style="background-color:#E3F2FD; color:#1565C0;">👤 操作: {row.get('Operator', '')}</div>
-                <div class="glide-tag">📦 數量: {row.get('Qty', '')}</div>
-                <div class="glide-tag" style="background-color: #E8F5E9; color: #2E7D32;">📊 自評: {eval_result}</div>
-                {sub_block}
-                {params_block}
-                <div class="glide-subtitle"><b>📝 備註與異常</b><br>{str(row.get('Remarks', '無')).replace('\n', '<br>')}</div>
-                <div class="glide-solution"><b>🗣️ 客戶反饋</b><br>{str(row.get('Feedback', '無')).replace('\n', '<br>')}</div>
-                {photo_html}
-                </div>
-                """, unsafe_allow_html=True)
+                                <div class="glide-card">
+                                <div class="glide-title">🧪 測試機台: {equip_name if equip_name else '未填寫'} <span style="font-size:12px; color:#999;">(單號: {row.get('Log_ID', '')})</span></div>
+                                <div class="glide-tag">📅 {row.get('Date', '')}</div>
+                                <div class="glide-tag">🏢 {row.get('Customer', '')}</div>
+                                <div class="glide-tag" style="background-color:#E3F2FD; color:#1565C0;">👤 操作: {row.get('Operator', '')}</div>
+                                <div class="glide-tag">📦 數量: {row.get('Qty', '')}</div>
+                                <div class="glide-tag" style="background-color: #E8F5E9; color: #2E7D32;">📊 自評: {eval_result}</div>
+                                {sub_block}
+                                {params_block}
+                                <div class="glide-subtitle"><b>📝 備註與異常</b><br>{str(row.get('Remarks', '無')).replace('\n', '<br>')}</div>
+                                <div class="glide-solution"><b>🗣️ 客戶反饋</b><br>{str(row.get('Feedback', '無')).replace('\n', '<br>')}</div>
+                                {photo_html}
+                                </div>
+                                """, unsafe_allow_html=True)
+                                
+                            with c_action:
+                                st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
+                                st.checkbox("🔲 勾選此筆", key=f"chk_export_{row.get('Log_ID')}")
+                                csv_data = pd.DataFrame([row]).to_csv(index=False).encode('utf-8-sig')
+                                st.download_button(label="📥 單筆匯出", data=csv_data, file_name=f"{row.get('Log_ID')}_Report.csv", mime="text/csv", key=f"dl_d_{row.get('Log_ID')}")
+                                
+                            st.markdown("<hr style='margin: 10px 0px 30px 0px; border: 0; border-top: 2px dashed #ccc;'>", unsafe_allow_html=True)
+
             else:
                 st.info("目前還沒有 DEMO 實驗紀錄，趕快去新增一筆吧！")
 
@@ -554,8 +590,6 @@ else:
             st.subheader("🧪 填寫實驗紀錄 (NT+CVP)")
             
             clone_nt_dict = {}
-            if "load_nt_key" not in st.session_state: st.session_state.load_nt_key = 0
-
             if not df_demo.empty:
                 history_opts_nt = [""] + [f"{r['Log_ID']} (客戶:{r['Customer']} | 機台:{r['Equipment']})" for idx, r in df_demo.iterrows() if "V-160" not in str(r['Equipment']).upper() and "V160" not in str(r['Equipment']).upper()]
                 clone_sel_nt = st.selectbox("⚡ 一鍵帶入歷史參數 (選擇後自動填滿下方欄位)", history_opts_nt, key=f"clone_nt_sel_{fk}")
@@ -655,3 +689,378 @@ else:
                             st.session_state[f"last_clone_nt_{fk}"] = ""
                             st.session_state.load_nt_key += 1
                             demo_msg.success(f"✅ 成功寫入 DEMO 紀錄！單號：{log_id}")
+
+        with tab_d3:
+            fk = st.session_state.form_key
+            st.subheader("🧪 填寫實驗紀錄 (V-160)")
+            
+            clone_v_dict = {}
+            if not df_demo.empty:
+                history_opts_v = [""] + [f"{r['Log_ID']} (客戶:{r['Customer']} | 機台:{r['Equipment']})" for idx, r in df_demo.iterrows() if "V-160" in str(r['Equipment']).upper() or "V160" in str(r['Equipment']).upper()]
+                clone_sel_v = st.selectbox("⚡ 一鍵帶入歷史參數 (選擇後自動填滿下方欄位)", history_opts_v, key=f"clone_v_sel_{fk}")
+                
+                if clone_sel_v:
+                    if st.session_state.get(f"last_clone_v_{fk}") != clone_sel_v:
+                        st.session_state.load_v_key += 1
+                        st.session_state[f"last_clone_v_{fk}"] = clone_sel_v
+                    clone_id = clone_sel_v.split(" ")[0]
+                    match_row = df_demo[df_demo['Log_ID'].astype(str).str.strip() == clone_id.strip()]
+                    if not match_row.empty: clone_v_dict = match_row.iloc[0].to_dict()
+                else:
+                    st.session_state[f"last_clone_v_{fk}"] = ""
+
+            lk_v = st.session_state.load_v_key
+
+            with st.form(f"v160_form_{fk}", clear_on_submit=True):
+                c1, c2 = st.columns(2)
+                with c1: input_v_date = st.date_input("測試日期", datetime.now(tz_tw).date(), key=f"v_date_{fk}")
+                
+                c_cust1, c_cust2 = st.columns(2)
+                old_cust_v = str(clone_v_dict.get('Customer', ''))
+                c_idx_v = unique_cust.index(old_cust_v) + 1 if old_cust_v in unique_cust else 0
+                with c_cust1: sel_cust_v = st.selectbox("選擇既有客戶", [""] + unique_cust, index=c_idx_v, key=f"v_cust_sel_{fk}_{lk_v}")
+                with c_cust2: new_cust_v = st.text_input("或自填新客戶", value=old_cust_v if old_cust_v and c_idx_v == 0 else "", placeholder="若無相符請填此", key=f"v_cust_new_{fk}_{lk_v}")
+                
+                c4, c5 = st.columns(2)
+                with c4: input_v_operator = st.text_input("操作人", value=st.session_state.user_name, disabled=True, key=f"v_oper_{fk}_{lk_v}")
+                with c5: input_v_equip = st.text_input("設備類型", value="V-160", disabled=True, key=f"v_equip_{fk}_{lk_v}") 
+                
+                with st.expander("📍 基材與膜材資訊", expanded=True):
+                    c_vs1, c_vs2 = st.columns(2)
+                    st_opts = ["", "PCB", "Wafer", "Glass", "其他"]
+                    c_st_v = str(clone_v_dict.get('Substrate_Type', ''))
+                    st_idx_v = st_opts.index(c_st_v) if c_st_v in st_opts else (4 if c_st_v else 0)
+                    with c_vs1: 
+                        input_v_sub_t = st.selectbox("板材類型", st_opts, index=st_idx_v, key=f"v_s_t_{fk}_{lk_v}")
+                        input_v_sub_t_other = st.text_input("自填板材", value=c_st_v if st_idx_v == 4 else "", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"v_s_to_{fk}_{lk_v}")
+                        input_v_sub_size = st.text_input("基板尺寸與厚度", value=str(clone_v_dict.get('Substrate_Size', '')), key=f"v_s_d_{fk}_{lk_v}")
+                    
+                    fm_opts = ["", "ABF", "DAF", "NCF", "PI", "其他"]
+                    c_fm_v = str(clone_v_dict.get('Film_Material', ''))
+                    fm_idx_v = fm_opts.index(c_fm_v) if c_fm_v in fm_opts else (5 if c_fm_v else 0)
+                    with c_vs2: 
+                        input_v_film_m = st.selectbox("膜材種類", fm_opts, index=fm_idx_v, key=f"v_f_m_{fk}_{lk_v}")
+                        input_v_film_m_other = st.text_input("自填膜材", value=c_fm_v if fm_idx_v == 5 else "", label_visibility="collapsed", placeholder="若選其他請在此填寫", key=f"v_f_mo_{fk}_{lk_v}")
+                        input_v_film_model = st.text_input("膜材型號 / 厚度", value=str(clone_v_dict.get('Film_Model', '')), key=f"v_f_mod_{fk}_{lk_v}")
+                
+                st.write("---")
+                v_defs = unpack_params(clone_v_dict.get('Lam_1st', ''))
+                with st.expander("📍 V-160 參數"):
+                    c_v1, c_v2 = st.columns(2)
+                    v_modes = ["", "上", "下", "上下"]
+                    old_vmode = v_defs.get("加壓模式", "")
+                    vm_idx = v_modes.index(old_vmode) if old_vmode in v_modes else 0
+                    with c_v1: v_mode = st.selectbox("加壓模式", v_modes, index=vm_idx, key=f"v_mode_{fk}_{lk_v}")
+                    with c_v2: v_tv = st.text_input("下真空時間 (sec)", value=v_defs.get("下真空時間 (sec)", ""), key=f"v_tv_{fk}_{lk_v}")
+                    c_v3, c_v4 = st.columns(2)
+                    with c_v3: v_tt = st.text_input("上溫度 (℃)", value=v_defs.get("上溫度 (℃)", ""), key=f"v_tt_{fk}_{lk_v}")
+                    with c_v4: v_tb = st.text_input("下溫度 (℃)", value=v_defs.get("下溫度 (℃)", ""), key=f"v_tb_{fk}_{lk_v}")
+                    st.write("---")
+                    v_tdrop_t = st.text_input("上硅膠墊垂落時間 (sec)", value=v_defs.get("上硅膠墊垂落時間 (sec)", ""), key=f"v_tdrop_t_{fk}_{lk_v}")
+                    c_v5, c_v6 = st.columns(2)
+                    with c_v5: v_pt = st.text_input("上氣囊加壓壓力 (kgf/cm²)", value=v_defs.get("上氣囊加壓壓力 (kgf/cm²)", ""), key=f"v_pt_{fk}_{lk_v}")
+                    with c_v6: v_tpt = st.text_input("上氣囊加壓時間 (sec)", value=v_defs.get("上氣囊加壓時間 (sec)", ""), key=f"v_tpt_{fk}_{lk_v}")
+                    st.write("---")
+                    v_dly_b = st.text_input("下加壓延遲時間 (sec)", value=v_defs.get("下加壓延遲時間 (sec)", ""), key=f"v_dly_b_{fk}_{lk_v}")
+                    v_tdrop_b = st.text_input("下硅膠墊垂落時間 (sec)", value=v_defs.get("下硅膠墊垂落時間 (sec)", ""), key=f"v_tdrop_b_{fk}_{lk_v}")
+                    c_v7, c_v8 = st.columns(2)
+                    with c_v7: v_pb = st.text_input("下加壓壓力 (kgf/cm²)", value=v_defs.get("下加壓壓力 (kgf/cm²)", ""), key=f"v_pb_{fk}_{lk_v}")
+                    with c_v8: v_tpb = st.text_input("下加壓時間 (sec)", value=v_defs.get("下加壓時間 (sec)", ""), key=f"v_tpb_{fk}_{lk_v}")
+                    
+                st.write("---")
+                c_vq1, c_vq2 = st.columns(2)
+                with c_vq1: input_v_qty = st.text_input("壓合數量 (片/次)", value=str(clone_v_dict.get('Qty', '')), key=f"v_qty_{fk}_{lk_v}")
+                
+                eval_opts = ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"]
+                old_eval = str(clone_v_dict.get('Self_Eval', ''))
+                e_idx = eval_opts.index(old_eval) if old_eval in eval_opts else 0
+                with c_vq2: input_v_eval = st.selectbox("內部自評結果", eval_opts, index=e_idx, key=f"v_eval_{fk}_{lk_v}")
+                
+                input_v_remark = st.text_area("備註 (測試變動說明、具體異常)", value=str(clone_v_dict.get('Remarks', '')), key=f"v_rmk_{fk}_{lk_v}")
+                input_v_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", value=str(clone_v_dict.get('Feedback', '')), key=f"v_fb_{fk}_{lk_v}")
+                upload_v_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"v_photo_{fk}_{lk_v}")
+                
+                st.write("---")
+                v160_msg = st.empty()
+                if st.form_submit_button("送出實驗紀錄", key=f"btn_v_{fk}"):
+                    final_customer = new_cust_v.strip() if new_cust_v.strip() else sel_cust_v
+                    if not all([final_customer]):
+                        v160_msg.error("⚠️ 請至少填寫客戶名稱！")
+                    else:
+                        with st.spinner("打包 V-160 參數並寫入雲端中..."):
+                            final_v_sub_t = input_v_sub_t_other if input_v_sub_t == "其他" else input_v_sub_t
+                            final_v_film_m = input_v_film_m_other if input_v_film_m == "其他" else input_v_film_m
+                            v160_dict = {
+                                "加壓模式": v_mode, "下真空時間 (sec)": v_tv, "上溫度 (℃)": v_tt, "下溫度 (℃)": v_tb,
+                                "上硅膠墊垂落時間 (sec)": v_tdrop_t, "上氣囊加壓壓力 (kgf/cm²)": v_pt, "上氣囊加壓時間 (sec)": v_tpt,
+                                "下加壓延遲時間 (sec)": v_dly_b, "下硅膠墊垂落時間 (sec)": v_tdrop_b,
+                                "下加壓壓力 (kgf/cm²)": v_pb, "下加壓時間 (sec)": v_tpb
+                            }
+                            input_v_params = pack_params(v160_dict)
+                            log_id = datetime.now(tz_tw).strftime("DEMO-%y%m%d-%H%M")
+                            photo_url = upload_image(upload_v_file, f"{log_id}.jpg") if upload_v_file else ""
+                            new_v160_row = [log_id, input_v_date.strftime("%Y-%m-%d"), input_v_operator, final_customer, input_v_equip, final_v_sub_t, input_v_sub_size, final_v_film_m, input_v_film_model, "無", input_v_params, "無", "無", input_v_qty, input_v_eval, input_v_remark, input_v_feedback, photo_url]
+                            sheet_demo.append_row(new_v160_row)
+                            st.cache_data.clear()
+                            
+                            st.session_state[f"clone_v_sel_{fk}"] = ""
+                            st.session_state[f"last_clone_v_{fk}"] = ""
+                            st.session_state.load_v_key += 1
+                            v160_msg.success(f"✅ 成功寫入 V-160 紀錄！單號：{log_id}")
+
+        with tab_d4:
+            st.subheader("✏️ 修改我的實驗紀錄")
+            if st.session_state.role == 'Admin':
+                my_df_d = df_demo.copy()
+            else:
+                my_df_d = df_demo[df_demo['Operator'].astype(str).str.strip() == st.session_state.user_name]
+            
+            if my_df_d.empty:
+                st.warning("您目前還沒有建立過任何實驗紀錄喔！")
+            else:
+                options_d = [""] + [f"{r['Log_ID']} (日期: {r['Date']} | 客戶: {r['Customer']} | 機台: {r['Equipment']})" for idx, r in my_df_d.iterrows()]
+                selected_d = st.selectbox("🔍 請選擇要修改的實驗單 (支援關鍵字搜尋)", options_d, key="select_edit_d")
+                
+                if selected_d:
+                    edit_d_id = selected_d.split(" ")[0]
+                    row_dict = df_demo[df_demo['Log_ID'] == edit_d_id].iloc[0].to_dict()
+                    
+                    st.success(f"✅ 成功載入實驗單號：{edit_d_id} (若不需修改照片請留空)")
+                    with st.form(f"edit_d_form_{edit_d_id}", clear_on_submit=True):
+                        try: old_date = datetime.strptime(str(row_dict.get('Date', '')), "%Y-%m-%d").date()
+                        except: old_date = datetime.now(tz_tw).date()
+                        
+                        c1, c2 = st.columns(2)
+                        ed_date = st.date_input("測試日期", value=old_date, key=f"ed_date_{edit_d_id}")
+                        ed_customer = st.text_input("客戶名稱", value=str(row_dict.get('Customer', '')), key=f"ed_cust_{edit_d_id}")
+                        
+                        c3, c4 = st.columns(2)
+                        with c3: ed_operator = st.text_input("操作人", value=str(row_dict.get('Operator', '')), disabled=True, key=f"ed_oper_{edit_d_id}")
+                        with c4: ed_equip = st.text_input("設備類型", value=str(row_dict.get('Equipment', '')), key=f"ed_equip_{edit_d_id}")
+                        
+                        with st.expander("📍 修改：基材與膜材資訊", expanded=True):
+                            c_s1, c_s2 = st.columns(2)
+                            old_st = str(row_dict.get('Substrate_Type', ''))
+                            st_opts = ["", "PCB", "Wafer", "Glass", "其他"]
+                            st_idx = st_opts.index(old_st) if old_st in st_opts else 4
+                            with c_s1: 
+                                ed_sub_t = st.selectbox("板材類型", st_opts, index=st_idx, key=f"ed_st_{edit_d_id}")
+                                ed_sub_t_other = st.text_input("自填板材", value=old_st if st_idx == 4 else "", label_visibility="collapsed", key=f"ed_sto_{edit_d_id}")
+                                ed_sub_size = st.text_input("基板尺寸與厚度", value=str(row_dict.get('Substrate_Size', '')), key=f"ed_sd_{edit_d_id}")
+                            
+                            old_fm = str(row_dict.get('Film_Material', ''))
+                            fm_opts = ["", "ABF", "DAF", "NCF", "PI", "其他"]
+                            fm_idx = fm_opts.index(old_fm) if old_fm in fm_opts else 5
+                            with c_s2: 
+                                ed_film_m = st.selectbox("膜材種類", fm_opts, index=fm_idx, key=f"ed_fm_{edit_d_id}")
+                                ed_film_m_other = st.text_input("自填膜材", value=old_fm if fm_idx == 5 else "", label_visibility="collapsed", key=f"ed_fmo_{edit_d_id}")
+                                ed_film_model = st.text_input("膜材型號 / 厚度", value=str(row_dict.get('Film_Model', '')), key=f"ed_fmod_{edit_d_id}")
+                        
+                        st.write("---")
+                        is_v160 = "V-160" in str(row_dict.get('Equipment', '')).upper() or "V160" in str(row_dict.get('Equipment', '')).upper()
+                        
+                        if is_v160:
+                            v_defs = unpack_params(row_dict.get('Lam_1st', ''))
+                            with st.expander("📍 V-160 參數", expanded=True):
+                                c_v1, c_v2 = st.columns(2)
+                                v_modes = ["", "上", "下", "上下"]
+                                old_vmode = v_defs.get("加壓模式", "")
+                                vm_idx = v_modes.index(old_vmode) if old_vmode in v_modes else 0
+                                with c_v1: ed_v_mode = st.selectbox("加壓模式", v_modes, index=vm_idx, key=f"ed_vm_{edit_d_id}")
+                                with c_v2: ed_v_tv = st.text_input("下真空時間 (sec)", value=v_defs.get("下真空時間 (sec)", ""), key=f"ed_v_tv_{edit_d_id}")
+                                c_v3, c_v4 = st.columns(2)
+                                with c_v3: ed_v_tt = st.text_input("上溫度 (℃)", value=v_defs.get("上溫度 (℃)", ""), key=f"ed_v_tt_{edit_d_id}")
+                                with c_v4: ed_v_tb = st.text_input("下溫度 (℃)", value=v_defs.get("下溫度 (℃)", ""), key=f"ed_v_tb_{edit_d_id}")
+                                st.write("---")
+                                ed_v_tdrop_t = st.text_input("上硅膠墊垂落時間 (sec)", value=v_defs.get("上硅膠墊垂落時間 (sec)", ""), key=f"ed_v_tdt_{edit_d_id}")
+                                c_v5, c_v6 = st.columns(2)
+                                with c_v5: ed_v_pt = st.text_input("上氣囊加壓壓力 (kgf/cm²)", value=v_defs.get("上氣囊加壓壓力 (kgf/cm²)", ""), key=f"ed_v_pt_{edit_d_id}")
+                                with c_v6: ed_v_tpt = st.text_input("上氣囊加壓時間 (sec)", value=v_defs.get("上氣囊加壓時間 (sec)", ""), key=f"ed_v_tpt_{edit_d_id}")
+                                st.write("---")
+                                ed_v_dly_b = st.text_input("下加壓延遲時間 (sec)", value=v_defs.get("下加壓延遲時間 (sec)", ""), key=f"ed_v_db_{edit_d_id}")
+                                ed_v_tdrop_b = st.text_input("下硅膠墊垂落時間 (sec)", value=v_defs.get("下硅膠墊垂落時間 (sec)", ""), key=f"ed_v_tdb_{edit_d_id}")
+                                c_v7, c_v8 = st.columns(2)
+                                with c_v7: ed_v_pb = st.text_input("下加壓壓力 (kgf/cm²)", value=v_defs.get("下加壓壓力 (kgf/cm²)", ""), key=f"ed_v_pb_{edit_d_id}")
+                                with c_v8: ed_v_tpb = st.text_input("下加壓時間 (sec)", value=v_defs.get("下加壓時間 (sec)", ""), key=f"ed_v_tpb_{edit_d_id}")
+                        else:
+                            pre_defs = unpack_params(row_dict.get('Pre_Lam', ''))
+                            with st.expander("📍 預貼機參數", expanded=True):
+                                c_p1, c_p2 = st.columns(2)
+                                with c_p1: ed_pre_t = st.text_input("預貼溫度 (℃)", value=pre_defs.get("預貼溫度 (℃)", ""), key=f"ed_p_t_{edit_d_id}")
+                                with c_p2: ed_pre_s = st.text_input("預貼速度 (m/min)", value=pre_defs.get("預貼速度 (m/min)", ""), key=f"ed_p_s_{edit_d_id}")
+                                c_p3, c_p4 = st.columns(2)
+                                with c_p3: ed_pre_p = st.text_input("預貼壓力 (MPa)", value=pre_defs.get("預貼壓力 (MPa)", ""), key=f"ed_p_p_{edit_d_id}")
+                                with c_p4: ed_pre_m = st.text_input("前後留邊量 (前mm / 後mm)", value=pre_defs.get("前後留邊量", ""), key=f"ed_p_m_{edit_d_id}")
+                                    
+                            ed_l1_dict = render_lam_inputs("1st 壓模機", "el1", edit_d_id, unpack_params(row_dict.get('Lam_1st', '')))
+                            ed_l2_dict = render_lam_inputs("2nd 壓模機", "el2", edit_d_id, unpack_params(row_dict.get('Lam_2nd', '')))
+                            ed_l3_dict = render_lam3_inputs("3rd 壓模機", "el3", edit_d_id, unpack_params(row_dict.get('Lam_3rd', '')))
+                        
+                        st.write("---")
+                        c_q1, c_q2 = st.columns(2)
+                        with c_q1: ed_qty = st.text_input("壓合數量 (片/次)", value=str(row_dict.get('Qty', '')), key=f"ed_qty_{edit_d_id}")
+                        
+                        eval_opts = ["⚪ 尚未評估", "🟢 佳 (參數可參考)", "🟡 普通 (需微調)", "🔴 差 (不建議使用)"]
+                        old_eval = str(row_dict.get('Self_Eval', ''))
+                        e_idx = eval_opts.index(old_eval) if old_eval in eval_opts else 0
+                        with c_q2: ed_eval = st.selectbox("內部自評結果", eval_opts, index=e_idx, key=f"ed_eval_{edit_d_id}")
+                        
+                        ed_remark = st.text_area("備註 (測試變動說明、具體異常)", value=str(row_dict.get('Remarks', '')), key=f"ed_rmk_{edit_d_id}")
+                        ed_feedback = st.text_area("客戶反饋 (Pass/Fail/改善點)", value=str(row_dict.get('Feedback', '')), key=f"ed_fb_{edit_d_id}")
+                        ed_upload = st.file_uploader("🖼️ 更新測試照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"ed_photo_{edit_d_id}")
+                        
+                        st.write("---")
+                        edit_d_msg = st.empty()
+                        if st.form_submit_button("💾 覆蓋更新實驗紀錄", key=f"btn_ed_{edit_d_id}"):
+                            with st.spinner("打包與更新雲端資料庫中..."):
+                                new_photo_url = upload_image(ed_upload, f"{edit_d_id}_edit.jpg") if ed_upload else str(row_dict.get('Photo_URL', ''))
+                                final_ed_sub_t = ed_sub_t_other if ed_sub_t == "其他" else ed_sub_t
+                                final_ed_film_m = ed_film_m_other if ed_film_m == "其他" else ed_film_m
+                                
+                                if is_v160:
+                                    new_v_dict = {
+                                        "加壓模式": ed_v_mode, "下真空時間 (sec)": ed_v_tv, "上溫度 (℃)": ed_v_tt, "下溫度 (℃)": ed_v_tb,
+                                        "上硅膠墊垂落時間 (sec)": ed_v_tdrop_t, "上氣囊加壓壓力 (kgf/cm²)": ed_v_pt, "上氣囊加壓時間 (sec)": ed_v_tpt,
+                                        "下加壓延遲時間 (sec)": ed_v_dly_b, "下硅膠墊垂落時間 (sec)": ed_v_tdrop_b,
+                                        "下加壓壓力 (kgf/cm²)": v_pb, "下加壓時間 (sec)": ed_v_tpb
+                                    }
+                                    final_pre, final_l1, final_l2, final_l3 = "無", pack_params(new_v_dict), "無", "無"
+                                else:
+                                    final_pre = pack_params({"預貼溫度 (℃)": ed_pre_t, "預貼壓力 (MPa)": ed_pre_p, "預貼速度 (m/min)": ed_pre_s, "前後留邊量": ed_pre_m})
+                                    final_l1 = pack_params(ed_l1_dict)
+                                    final_l2 = pack_params(ed_l2_dict)
+                                    final_l3 = pack_params(ed_l3_dict)
+
+                                new_d_row = [edit_d_id, ed_date.strftime("%Y-%m-%d"), ed_operator, ed_customer, ed_equip, final_ed_sub_t, ed_sub_size, final_ed_film_m, ed_film_model, final_pre, final_l1, final_l2, final_l3, ed_qty, ed_eval, ed_remark, ed_feedback, new_photo_url]
+                                cell = sheet_demo.find(edit_d_id, in_column=1)
+                                sheet_demo.update(values=[new_d_row], range_name=f"A{cell.row}:R{cell.row}")
+                                st.cache_data.clear()
+                                edit_d_msg.success(f"✅ 實驗單號 {edit_d_id} 更新成功！")
+
+    # ==========================================
+    # 模式 C：產品厚度計算機
+    # ==========================================
+    elif app_mode == "🧮 產品厚度計算機":
+        st.markdown("## 🧮 產品厚度計算機")
+        st.info("💡 請在下方輸入框填寫測量數值，系統將即時為您運算。**黃色背景**為系統自動計算的結果，**綠色框框**即為應輸入至機台 3rd 的目標產品厚度。")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("### 【1st 前】測量與設定")
+            val_1 = st.number_input("1. 板材厚度 (不含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+            val_2 = st.number_input("2. 板材厚度 (含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+            val_3 = val_2 - val_1
+            st.markdown(f"<div class='calc-yellow'>3. 線路、銅柱高：{val_3:.2f}</div>", unsafe_allow_html=True)
+            st.write("---")
+            val_4 = st.number_input("4. COVER 厚度 (僅供紀錄)", value=0.00, step=0.01, format="%.2f")
+            val_5 = st.number_input("5. 膜材 厚度", value=0.00, step=0.01, format="%.2f")
+            val_6 = st.number_input("6. PET 厚度", value=0.00, step=0.01, format="%.2f")
+            val_7 = val_1 + val_5 + val_6
+            val_8 = val_2 + val_5 + val_6
+            st.markdown(f"<div class='calc-yellow'>7. 壓合前總厚度 (不含)：{val_7:.2f}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='calc-yellow'>8. 壓合前總厚度 (含)：{val_8:.2f}</div>", unsafe_allow_html=True)
+
+        with col2:
+            st.markdown("### 【1st 後】測量與計算")
+            val_9 = st.number_input("9. 板材厚度 (不含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+            gap_9 = val_7 - val_9 if val_9 > 0 else 0.0
+            st.markdown(f"<div class='calc-yellow'>壓合前後差距 (7 減 9)：{gap_9:.2f}</div>", unsafe_allow_html=True)
+            st.write("---")
+            val_10 = st.number_input("10. 板材厚度 (含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+            gap_10 = val_8 - val_10 if val_10 > 0 else 0.0
+            st.markdown(f"<div class='calc-yellow'>壓合前後差距 (8 減 10)：{gap_10:.2f}</div>", unsafe_allow_html=True)
+            val_11 = val_5 - val_3 - gap_10 if val_10 > 0 else 0.0
+            st.write("---")
+            st.markdown(f"""<div class="calc-green">🎯 輸入 3rd 產品厚度 (對應第 10 項)：{val_10:.2f}</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="calc-yellow" style="margin-top:15px; border-left: 5px solid #FF8F00;">11. 膜尚可壓縮量：{val_11:.2f}</div>""", unsafe_allow_html=True)
+
+    # ==========================================
+    # 模式 D：👑 管理員後台 (Admin 專屬)
+    # ==========================================
+    elif app_mode == "👑 管理員後台":
+        st.markdown("## 👑 管理員專屬後台")
+        st.info("💡 歡迎進入系統核心控制台！您可以在此總覽所有帳號狀態、新增實驗室同仁，或協助忘記密碼的人員重置密碼。")
+        
+        users_df = load_data("users")
+        
+        tab_a1, tab_a2, tab_a3, tab_a4 = st.tabs(["👥 帳號總覽", "➕ 新增人員", "🔄 重置密碼", "❌ 刪除帳號"])
+        
+        with tab_a1:
+            c_header, c_btn = st.columns([3, 1])
+            with c_header:
+                st.subheader("目前系統帳號清單")
+            with c_btn:
+                if st.button("🔄 重新整理", use_container_width=True):
+                    st.cache_data.clear()
+                    st.rerun()
+            
+            display_df = users_df.copy()
+            if 'Last_Login' not in display_df.columns:
+                display_df['Last_Login'] = ""
+            display_df['Last_Login'] = display_df['Last_Login'].fillna("")
+            
+            display_df = display_df[['EPM_ID', 'Name', 'Role', 'Last_Login', 'Is_First_Login']]
+            display_df.columns = ['工號 (EPM_ID)', '姓名', '權限等級', '最後登入時間', '是否為首次登入 (需改密碼)']
+            st.dataframe(display_df, use_container_width=True, hide_index=True)
+            
+        with tab_a2:
+            st.subheader("新增系統使用者")
+            with st.form("add_user_form", clear_on_submit=True):
+                c1, c2 = st.columns(2)
+                with c1: new_id = st.text_input("工號 (EPM_ID)")
+                with c2: new_name = st.text_input("姓名")
+                
+                new_role = st.selectbox("權限等級", ["User", "Admin"])
+                
+                st.write("---")
+                admin_add_msg = st.empty()
+                if st.form_submit_button("➕ 建立帳號 (預設密碼為 123)"):
+                    if not new_id or not new_name:
+                        admin_add_msg.error("⚠️ 請填寫工號與姓名！")
+                    elif str(new_id) in users_df['EPM_ID'].astype(str).values:
+                        admin_add_msg.error(f"⛔ 工號 {new_id} 已經存在，請確認是否重複建立！")
+                    else:
+                        with st.spinner("建立帳號中..."):
+                            default_hash = hash_pw("123")
+                            sheet_users.append_row([str(new_id), str(new_name), default_hash, new_role, "TRUE", ""])
+                            st.cache_data.clear()
+                            admin_add_msg.success(f"✅ 成功新增人員：{new_name}！請請他用預設密碼 123 登入。")
+                            
+        with tab_a3:
+            st.subheader("協助人員重置密碼")
+            with st.form("reset_pw_form", clear_on_submit=True):
+                reset_opts = [f"{r['EPM_ID']} - {r['Name']}" for idx, r in users_df.iterrows()]
+                reset_target = st.selectbox("🔍 請選擇要重置密碼的人員", reset_opts)
+                
+                st.write("---")
+                admin_reset_msg = st.empty()
+                if st.form_submit_button("🔄 重置該員密碼為 123"):
+                    target_id = reset_target.split(" - ")[0]
+                    target_name = reset_target.split(" - ")[1]
+                    with st.spinner(f"正在重置 {target_name} 的密碼..."):
+                        cell = sheet_users.find(target_id, in_column=1)
+                        sheet_users.update_acell(f"C{cell.row}", hash_pw("123"))
+                        sheet_users.update_acell(f"E{cell.row}", "TRUE")
+                        st.cache_data.clear()
+                        admin_reset_msg.success(f"✅ 成功將 {target_name} ({target_id}) 的密碼重置為 123！下次登入將強制修改。")
+
+        with tab_a4:
+            st.subheader("刪除系統帳號")
+            st.warning("⚠️ 注意：刪除帳號後，該人員將無法再登入系統，但其過去填寫的歷史紀錄仍會保留在資料庫中。")
+            with st.form("del_user_form", clear_on_submit=True):
+                del_opts = [f"{r['EPM_ID']} - {r['Name']}" for idx, r in users_df.iterrows()]
+                del_target = st.selectbox("🗑️ 請選擇要刪除的人員", del_opts)
+                
+                st.write("---")
+                admin_del_msg = st.empty()
+                if st.form_submit_button("❌ 永久刪除此帳號"):
+                    target_id = del_target.split(" - ")[0]
+                    target_name = del_target.split(" - ")[1]
+                    
+                    if target_id == st.session_state.emp_id:
+                        admin_del_msg.error("⛔ 系統安全限制：您不能刪除您自己目前登入的帳號！")
+                    else:
+                        with st.spinner(f"正在永久刪除 {target_name} 的帳號..."):
+                            cell = sheet_users.find(target_id, in_column=1)
+                            sheet_users.delete_rows(cell.row)
+                            st.cache_data.clear()
+                            admin_del_msg.success(f"✅ 已成功永久刪除 {target_name} ({target_id}) 的系統帳號。")
