@@ -27,8 +27,15 @@ if "last_active" not in st.session_state:
     st.session_state.last_active = datetime.now(tz_tw)
 if "form_key" not in st.session_state:
     st.session_state.form_key = 0
-if "success_msg" not in st.session_state:
-    st.session_state.success_msg = ""
+
+# 📌 獨立管理各表單的成功提示訊息
+if "msg_maint" not in st.session_state: st.session_state.msg_maint = ""
+if "msg_demo_nt" not in st.session_state: st.session_state.msg_demo_nt = ""
+if "msg_demo_v" not in st.session_state: st.session_state.msg_demo_v = ""
+if "msg_admin_add" not in st.session_state: st.session_state.msg_admin_add = ""
+if "msg_admin_reset" not in st.session_state: st.session_state.msg_admin_reset = ""
+if "msg_admin_del" not in st.session_state: st.session_state.msg_admin_del = ""
+
 if "load_nt_key" not in st.session_state: 
     st.session_state.load_nt_key = 0
 if "load_v_key" not in st.session_state: 
@@ -227,8 +234,7 @@ elif st.session_state.must_change_pw:
                     st.session_state.must_change_pw = False
                     st.success("✅ 密碼修改成功！正在為您導向主系統...")
                     st.rerun()
-
-# ==========================================
+                    # ==========================================
 # 🔓 主系統區塊
 # ==========================================
 else:
@@ -270,10 +276,6 @@ else:
             except: st.title("⚙️") 
         with col2:
             st.markdown(f"<h1 style='margin-top: -15px;'>{'設備維修知識庫' if app_mode == '🔧 現場維修系統' else 'DEMO 實驗資料庫'}</h1>", unsafe_allow_html=True)
-            
-        if st.session_state.success_msg:
-            st.success(st.session_state.success_msg)
-            st.session_state.success_msg = ""
 
     # ==========================================
     # 模式 A：現場維修系統
@@ -295,7 +297,6 @@ else:
 
                 st.write("---")
                 
-                # 📌 現場維修：批次匯出購物車
                 st.markdown("#### 📦 批次匯出區")
                 selected_batch_ids_m = [row['Log_ID'] for idx, row in filtered_df.iterrows() if st.session_state.get(f"chk_export_m_{row['Log_ID']}", False)]
                 if selected_batch_ids_m:
@@ -337,7 +338,6 @@ else:
                     group_data = filtered_df[filtered_df[group_col] == group_name]
                     with st.expander(f"📁 {display_name} (共 {len(group_data)} 筆)"):
                         for index, row in group_data.iterrows():
-                            # 📌 維修卡片 + 虛線分隔排版
                             c_card, c_action = st.columns([5, 2])
                             with c_card:
                                 photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
@@ -358,7 +358,7 @@ else:
                             
                             with c_action:
                                 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                                st.checkbox("勾選此筆", key=f"chk_export_m_{row.get('Log_ID')}")
+                                st.checkbox("🔲 勾選此筆", key=f"chk_export_m_{row.get('Log_ID')}")
                                 csv_data = pd.DataFrame([row]).to_csv(index=False).encode('utf-8-sig')
                                 st.download_button(label="📥 單筆匯出", data=csv_data, file_name=f"{row.get('Log_ID')}_Report.csv", mime="text/csv", key=f"dl_m_{row.get('Log_ID')}")
                                 
@@ -369,7 +369,8 @@ else:
 
         with tab2:
             fk = st.session_state.form_key
-            with st.form(f"maint_form_{fk}", clear_on_submit=True):
+            # 📌 關鍵升級：clear_on_submit 設為 False，防呆不洗白資料！
+            with st.form(f"maint_form_{fk}", clear_on_submit=False):
                 st.subheader("📝 填寫維修紀錄")
                 comp_options = ["預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"]
                 
@@ -387,7 +388,13 @@ else:
                 upload_file = st.file_uploader("🖼️ 附加現場照片", type=['jpg', 'png', 'jpeg'], key=f"m_photo_{fk}")
                 
                 st.write("---")
+                
+                # 📌 專屬訊息提示區
                 maint_msg = st.empty()
+                if st.session_state.msg_maint:
+                    maint_msg.success(st.session_state.msg_maint)
+                    st.session_state.msg_maint = ""
+                    
                 if st.form_submit_button("送出維修紀錄", key=f"btn_m_{fk}"):
                     final_customer = new_cust.strip() if new_cust.strip() else sel_cust
                     if not all([final_customer, input_machine, input_component, input_issue, input_solution]):
@@ -398,7 +405,11 @@ else:
                             photo_url = upload_image(upload_file, f"{log_id}.jpg") if upload_file else ""
                             sheet_maint.append_row([log_id, input_date.strftime("%Y-%m-%d"), input_engineer, final_customer, input_machine, input_component, input_issue, input_solution, photo_url])
                             st.cache_data.clear()
-                            maint_msg.success(f"✅ 成功寫入資料庫！單號：{log_id}")
+                            
+                            # 📌 寫入成功：設定訊息並觸發金鑰輪換 (強制刷新表單)
+                            st.session_state.msg_maint = f"✅ 成功寫入資料庫！單號：{log_id}"
+                            st.session_state.form_key += 1
+                            st.rerun()
 
         with tab3:
             st.subheader("📈 維修數據統計看板")
@@ -460,8 +471,7 @@ else:
                                 sheet_maint.update(values=[new_m_row], range_name=f"A{cell.row}:I{cell.row}")
                                 st.cache_data.clear()
                                 edit_m_msg.success(f"✅ 單號 {edit_m_id} 更新成功！")
-
-    # ==========================================
+                                # ==========================================
     # 模式 B：DEMO 實驗紀錄
     # ==========================================
     elif app_mode == "🧪 DEMO 實驗紀錄":
@@ -492,7 +502,7 @@ else:
                 
                 st.write("---")
                 
-                # 📌 實驗紀錄：批次匯出購物車
+                # 📌 實驗卡片批次勾選匯出
                 st.markdown("#### 📦 批次匯出區")
                 selected_batch_ids_d = [row['Log_ID'] for idx, row in filtered_demo.iterrows() if st.session_state.get(f"chk_export_{row['Log_ID']}", False)]
                 if selected_batch_ids_d:
@@ -532,7 +542,6 @@ else:
                     group_data = filtered_demo[filtered_demo[group_col_d] == group_name]
                     with st.expander(f"📁 {display_name} (共 {len(group_data)} 筆)"):
                         for index, row in group_data.iterrows():
-                            # 📌 實驗卡片 + 虛線分隔排版
                             c_card, c_action = st.columns([5, 2])
                             with c_card:
                                 photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
@@ -576,7 +585,7 @@ else:
                                 
                             with c_action:
                                 st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
-                                st.checkbox("勾選此筆", key=f"chk_export_{row.get('Log_ID')}")
+                                st.checkbox("🔲 勾選此筆", key=f"chk_export_{row.get('Log_ID')}")
                                 csv_data = pd.DataFrame([row]).to_csv(index=False).encode('utf-8-sig')
                                 st.download_button(label="📥 單筆匯出", data=csv_data, file_name=f"{row.get('Log_ID')}_Report.csv", mime="text/csv", key=f"dl_d_{row.get('Log_ID')}")
                                 
@@ -606,7 +615,8 @@ else:
 
             lk_nt = st.session_state.load_nt_key
             
-            with st.form(f"demo_form_{fk}", clear_on_submit=True):
+            # 📌 不洗白開關 (clear_on_submit=False)
+            with st.form(f"demo_form_{fk}", clear_on_submit=False):
                 c1, c2 = st.columns(2)
                 with c1: input_d_date = st.date_input("測試日期", datetime.now(tz_tw).date(), key=f"d_date_{fk}")
                 
@@ -666,7 +676,13 @@ else:
                 upload_d_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"d_photo_{fk}_{lk_nt}")
                 
                 st.write("---")
+                
+                # 📌 NT 成功提示區
                 demo_msg = st.empty()
+                if st.session_state.msg_demo_nt:
+                    demo_msg.success(st.session_state.msg_demo_nt)
+                    st.session_state.msg_demo_nt = ""
+
                 if st.form_submit_button("送出實驗紀錄", key=f"btn_d_{fk}"):
                     final_customer = new_cust.strip() if new_cust.strip() else sel_cust
                     if not all([final_customer, input_d_equip]):
@@ -685,10 +701,9 @@ else:
                             sheet_demo.append_row(new_demo_row)
                             st.cache_data.clear()
                             
-                            st.session_state[f"clone_nt_sel_{fk}"] = ""
-                            st.session_state[f"last_clone_nt_{fk}"] = ""
-                            st.session_state.load_nt_key += 1
-                            demo_msg.success(f"✅ 成功寫入 DEMO 紀錄！單號：{log_id}")
+                            st.session_state.msg_demo_nt = f"✅ 成功寫入 DEMO 紀錄！單號：{log_id}"
+                            st.session_state.form_key += 1
+                            st.rerun()
 
         with tab_d3:
             fk = st.session_state.form_key
@@ -711,7 +726,8 @@ else:
 
             lk_v = st.session_state.load_v_key
 
-            with st.form(f"v160_form_{fk}", clear_on_submit=True):
+            # 📌 不洗白開關 (clear_on_submit=False)
+            with st.form(f"v160_form_{fk}", clear_on_submit=False):
                 c1, c2 = st.columns(2)
                 with c1: input_v_date = st.date_input("測試日期", datetime.now(tz_tw).date(), key=f"v_date_{fk}")
                 
@@ -781,7 +797,13 @@ else:
                 upload_v_file = st.file_uploader("🖼️ 附加測試結果照片 (選填)", type=['jpg', 'png', 'jpeg'], key=f"v_photo_{fk}_{lk_v}")
                 
                 st.write("---")
+                
+                # 📌 V-160 成功提示區
                 v160_msg = st.empty()
+                if st.session_state.msg_demo_v:
+                    v160_msg.success(st.session_state.msg_demo_v)
+                    st.session_state.msg_demo_v = ""
+
                 if st.form_submit_button("送出實驗紀錄", key=f"btn_v_{fk}"):
                     final_customer = new_cust_v.strip() if new_cust_v.strip() else sel_cust_v
                     if not all([final_customer]):
@@ -803,10 +825,9 @@ else:
                             sheet_demo.append_row(new_v160_row)
                             st.cache_data.clear()
                             
-                            st.session_state[f"clone_v_sel_{fk}"] = ""
-                            st.session_state[f"last_clone_v_{fk}"] = ""
-                            st.session_state.load_v_key += 1
-                            v160_msg.success(f"✅ 成功寫入 V-160 紀錄！單號：{log_id}")
+                            st.session_state.msg_demo_v = f"✅ 成功寫入 V-160 紀錄！單號：{log_id}"
+                            st.session_state.form_key += 1
+                            st.rerun()
 
         with tab_d4:
             st.subheader("✏️ 修改我的實驗紀錄")
@@ -936,8 +957,7 @@ else:
                                 sheet_demo.update(values=[new_d_row], range_name=f"A{cell.row}:R{cell.row}")
                                 st.cache_data.clear()
                                 edit_d_msg.success(f"✅ 實驗單號 {edit_d_id} 更新成功！")
-
-    # ==========================================
+                                # ==========================================
     # 模式 C：產品厚度計算機
     # ==========================================
     elif app_mode == "🧮 產品厚度計算機":
@@ -981,6 +1001,7 @@ else:
         st.info("💡 歡迎進入系統核心控制台！您可以在此總覽所有帳號狀態、新增實驗室同仁，或協助忘記密碼的人員重置密碼。")
         
         users_df = load_data("users")
+        fk = st.session_state.form_key
         
         tab_a1, tab_a2, tab_a3, tab_a4 = st.tabs(["👥 帳號總覽", "➕ 新增人員", "🔄 重置密碼", "❌ 刪除帳號"])
         
@@ -1004,15 +1025,20 @@ else:
             
         with tab_a2:
             st.subheader("新增系統使用者")
-            with st.form("add_user_form", clear_on_submit=True):
+            
+            # 📌 導入不洗白防護
+            with st.form(f"add_user_form_{fk}", clear_on_submit=False):
                 c1, c2 = st.columns(2)
-                with c1: new_id = st.text_input("工號 (EPM_ID)")
-                with c2: new_name = st.text_input("姓名")
-                
-                new_role = st.selectbox("權限等級", ["User", "Admin"])
+                with c1: new_id = st.text_input("工號 (EPM_ID)", key=f"ad_id_{fk}")
+                with c2: new_name = st.text_input("姓名", key=f"ad_nm_{fk}")
+                new_role = st.selectbox("權限等級", ["User", "Admin"], key=f"ad_rl_{fk}")
                 
                 st.write("---")
                 admin_add_msg = st.empty()
+                if st.session_state.msg_admin_add:
+                    admin_add_msg.success(st.session_state.msg_admin_add)
+                    st.session_state.msg_admin_add = ""
+
                 if st.form_submit_button("➕ 建立帳號 (預設密碼為 123)"):
                     if not new_id or not new_name:
                         admin_add_msg.error("⚠️ 請填寫工號與姓名！")
@@ -1023,16 +1049,22 @@ else:
                             default_hash = hash_pw("123")
                             sheet_users.append_row([str(new_id), str(new_name), default_hash, new_role, "TRUE", ""])
                             st.cache_data.clear()
-                            admin_add_msg.success(f"✅ 成功新增人員：{new_name}！請請他用預設密碼 123 登入。")
+                            st.session_state.msg_admin_add = f"✅ 成功新增人員：{new_name}！請請他用預設密碼 123 登入。"
+                            st.session_state.form_key += 1
+                            st.rerun()
                             
         with tab_a3:
             st.subheader("協助人員重置密碼")
-            with st.form("reset_pw_form", clear_on_submit=True):
+            with st.form(f"reset_pw_form_{fk}", clear_on_submit=False):
                 reset_opts = [f"{r['EPM_ID']} - {r['Name']}" for idx, r in users_df.iterrows()]
-                reset_target = st.selectbox("🔍 請選擇要重置密碼的人員", reset_opts)
+                reset_target = st.selectbox("🔍 請選擇要重置密碼的人員", reset_opts, key=f"ad_rst_{fk}")
                 
                 st.write("---")
                 admin_reset_msg = st.empty()
+                if st.session_state.msg_admin_reset:
+                    admin_reset_msg.success(st.session_state.msg_admin_reset)
+                    st.session_state.msg_admin_reset = ""
+
                 if st.form_submit_button("🔄 重置該員密碼為 123"):
                     target_id = reset_target.split(" - ")[0]
                     target_name = reset_target.split(" - ")[1]
@@ -1041,21 +1073,26 @@ else:
                         sheet_users.update_acell(f"C{cell.row}", hash_pw("123"))
                         sheet_users.update_acell(f"E{cell.row}", "TRUE")
                         st.cache_data.clear()
-                        admin_reset_msg.success(f"✅ 成功將 {target_name} ({target_id}) 的密碼重置為 123！下次登入將強制修改。")
+                        st.session_state.msg_admin_reset = f"✅ 成功將 {target_name} ({target_id}) 的密碼重置為 123！下次登入將強制修改。"
+                        st.session_state.form_key += 1
+                        st.rerun()
 
         with tab_a4:
             st.subheader("刪除系統帳號")
             st.warning("⚠️ 注意：刪除帳號後，該人員將無法再登入系統，但其過去填寫的歷史紀錄仍會保留在資料庫中。")
-            with st.form("del_user_form", clear_on_submit=True):
+            with st.form(f"del_user_form_{fk}", clear_on_submit=False):
                 del_opts = [f"{r['EPM_ID']} - {r['Name']}" for idx, r in users_df.iterrows()]
-                del_target = st.selectbox("🗑️ 請選擇要刪除的人員", del_opts)
+                del_target = st.selectbox("🗑️ 請選擇要刪除的人員", del_opts, key=f"ad_del_{fk}")
                 
                 st.write("---")
                 admin_del_msg = st.empty()
+                if st.session_state.msg_admin_del:
+                    admin_del_msg.success(st.session_state.msg_admin_del)
+                    st.session_state.msg_admin_del = ""
+
                 if st.form_submit_button("❌ 永久刪除此帳號"):
                     target_id = del_target.split(" - ")[0]
                     target_name = del_target.split(" - ")[1]
-                    
                     if target_id == st.session_state.emp_id:
                         admin_del_msg.error("⛔ 系統安全限制：您不能刪除您自己目前登入的帳號！")
                     else:
@@ -1063,4 +1100,6 @@ else:
                             cell = sheet_users.find(target_id, in_column=1)
                             sheet_users.delete_rows(cell.row)
                             st.cache_data.clear()
-                            admin_del_msg.success(f"✅ 已成功永久刪除 {target_name} ({target_id}) 的系統帳號。")
+                            st.session_state.msg_admin_del = f"✅ 已成功永久刪除 {target_name} ({target_id}) 的系統帳號。"
+                            st.session_state.form_key += 1
+                            st.rerun()
