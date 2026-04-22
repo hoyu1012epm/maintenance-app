@@ -126,6 +126,7 @@ st.markdown("""
 .glide-img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #eee; }
 .diff-alert { background-color: #FFEBEE; border-left: 5px solid #D32F2F; padding: 10px; border-radius: 8px; margin-bottom: 10px; color: #C62828; }
 .diff-safe { background-color: #F1F8E9; border-left: 5px solid #4CAF50; padding: 10px; border-radius: 8px; margin-bottom: 10px; color: #2E7D32; }
+.calc-yellow { background-color: #FFF9C4; color: #333333; padding: 8px 12px; border-radius: 8px; border-left: 5px solid #FBC02D; font-weight: bold; margin-bottom: 10px; }
 .calc-green { background-color: #E8F5E9; padding: 12px; border-radius: 8px; border-left: 6px solid #4CAF50; font-size: 18px; font-weight: bold; color: #2E7D32; margin-top: 10px; }
 </style>
 """, unsafe_allow_html=True)
@@ -361,7 +362,7 @@ else:
                 e_opts = ["⚪ 尚未", "🟢 佳", "🟡 普通", "🔴 差"]
                 with c_q2: d_ev = st.selectbox("自評", e_opts, index=(e_opts.index(str(c_dat.get('Self_Eval',''))) if str(c_dat.get('Self_Eval','')) in e_opts else 0))
                 
-                d_re = text_area("備註", value=str(c_dat.get('Remarks','')))
+                d_re = st.text_area("備註", value=str(c_dat.get('Remarks','')))
                 d_fb = st.text_area("反饋", value=str(c_dat.get('Feedback','')))
                 d_up = st.file_uploader("🖼️ 照片", type=['jpg','png'])
                 
@@ -475,19 +476,38 @@ else:
                             st.cache_data.clear(); st.success("更新成功！")
 
     # ---------------------------------------------------------
-    # 模式 C：⚙️ 設備機械履歷 (全動態 A~BK 63參數引擎)
+    # 模式 C：⚙️ 設備機械履歷 (100% 吻合 62 欄位設計)
     # ---------------------------------------------------------
     elif app_mode == "⚙️ 設備機械履歷":
         MACHINE_PARAM_GROUPS = {
-            "📍 A區：伺服壓合與極限 (D120~D854)": ["A_D120_下限位置極限","A_D122_真空位置下限極限","A_D314_壓合恆定速度","A_D6064_加速","A_D6065_減速","A_D6090_待機位置","A_D6092_下限位置","A_D452_壓力異常限值","A_D170_真空大氣開放時間","A_D176_不抽真空時轉矩下限","A_D177_抽真空時轉矩下限","A_D854_Film咬合保持"],
-            "📍 B區：驅動與傳送 (D40~D718)": ["B_D40_驅動軸間隔移動量","B_D6158_Film送帶速度","B_D6156_加速時間","B_D6157_減速時間","B_D46_張力初始","B_D47_張力初始時定數","B_D48_品種張力時定數","B_D714_加速時間","B_D715_減速時間","B_D717_工序時間","B_D718_傳送部擋板停止速度","B_D328_入口異常時間","B_D514_自動運行中擋板上升延遲"],
-            "📍 C區：溫度 Bias 補償 (客變重點)": ["C_1st上Bias","C_1st下Bias","C_2nd上Bias_In","C_2nd下Bias_In","C_3rd上Bias_In","C_3rd下Bias_In"],
-            "📍 D區：1st 壓合台 (D740~D872)": ["D_D740_壓合台壓力異常範圍","D_D742_上升傳感器延遲時間","D_D743_1st真空開放","D_D746_高壓ON 逆向壓力時間","D_D747_壓合台必要推力","D_D748_逆壓壓力","D_D749_加壓電控閥調節","D_D750_逆壓電控閥調節","D_D782_加壓異常時間","D_D790_下降時殘留壓力排放時間","D_D791_自動運轉下降阻斷閥打開延遲","D_D736_1st手動上升高壓輔助ON","D_D870_增壓閥下限壓力","D_D872_異常時間"],
-            "📍 D區：2nd 壓合台 (D752~D875)": ["D_D752_壓合台壓力異常範圍","D_D754_上升傳感器延遲時間","D_D755_真空大氣開放時間","D_D758_高壓ON 逆向壓力時間","D_D759_壓合台必要推力","D_D760_逆壓壓力","D_D761_加壓電控閥調節","D_D762_逆壓電控閥調節","D_D783_加壓異常時間","D_D792_下降時殘留壓力排放時間","D_D793_自動運轉下降阻斷閥打開延遲","D_D738_2nd手動上升高壓輔助ON","D_D873_增壓閥下限壓力","D_D875_異常時間"],
-            "📍 E區：伺服定位與 Fit (D460~D464)": ["E_D460_定位1次","E_D462_壓力1次","E_D466_Fit模式SUS接觸搜索1次定位量","E_D464_Fit推進量"]
+            "📍 A區：伺服壓合與極限 (D120~D854)": [
+                "A_D120_下限位置極限", "A_D122_真空位置下限極限", "A_D314_壓合恆定速度", "A_D6064_加速", "A_D6065_減速", 
+                "A_D6090_待機位置", "A_D6092_下限位置", "A_D452_壓力異常限值", "A_D170_真空大氣開放時間", 
+                "A_D176_不抽真空時轉矩下限", "A_D177_抽真空時轉矩下限", "A_D854_Film咬合保持"
+            ],
+            "📍 B區：驅動與傳送 (D40~D718)": [
+                "B_D40_驅動軸間隔移動量", "B_D6156_加速時間", "B_D6157_減速時間", "B_D46_張力初始", "B_D47_張力初始時定數", 
+                "B_D48_品種張力時定數", "B_D714_加速時間", "B_D715_減速時間", "B_D717_工序時間", "B_D718_傳送部擋板停止速度", 
+                "B_D328_入口異常時間", "B_D514、520_自動運行中擋板上升延遲"
+            ],
+            "📍 D區：1st 壓合台 (D740~D872)": [
+                "D_D740_壓合台壓力異常範圍", "D_D742_上升傳感器延遲時間", "D_D743_真空大氣開放時間", "D_D746_高壓ON 逆向壓力時間", 
+                "D_D747_壓合台必要推力", "D_D748_逆壓壓力", "D_D749_加壓電控閥調節", "D_D750_逆壓電控閥調節", "D_D782_加壓異常時間", 
+                "D_D790_下降時殘留壓力排放時間", "D_D791_自動運轉下降阻斷閥打開延遲", "D_D736_1st手動上升高壓輔助ON", 
+                "D_D870_增壓閥下限壓力", "D_D872_異常時間"
+            ],
+            "📍 D區：2nd 壓合台 (D752~D875)": [
+                "D_D752_壓合台壓力異常範圍", "D_D754_上升傳感器延遲時間", "D_D755_真空大氣開放時間", "D_D758_高壓ON 逆向壓力時間", 
+                "D_D759_壓合台必要推力", "D_D760_逆壓壓力", "D_D761_加壓電控閥調節", "D_D762_逆壓電控閥調節", "D_D783_加壓異常時間", 
+                "D_D792_下降時殘留壓力排放時間", "D_D793_自動運轉下降阻斷閥打開延遲", "D_D738_2nd手動上升高壓輔助ON", 
+                "D_D873_增壓閥下限壓力", "D_D875_異常時間"
+            ],
+            "📍 E區：伺服定位與 Fit (D460~D464)": [
+                "E_D460_定位1次定位量", "E_D462_壓力1次定位量", "E_D466_Fit模式SUS接觸搜索1次定位量", "E_D464_Fit控制推進時1次定位量"
+            ]
         }
 
-        tab_m1, tab_m2 = st.tabs(["🔍 參數查詢與客變比對", "➕ 紀錄機台現況 (100% 完整還原)"])
+        tab_m1, tab_m2 = st.tabs(["🔍 參數查詢與客變比對", "➕ 紀錄機台現況 (100% 完整對應)"])
         
         with tab_m1:
             search_sn = st.text_input("🔍 輸入機台序號 (SN) 查詢：", placeholder="例如: CVP-1500-001")
@@ -495,8 +515,8 @@ else:
                 sn_recs = df_mach[df_mach['Equipment_SN'].astype(str).str.contains(search_sn, case=False)]
                 if sn_recs.empty: st.warning("找不到此機台。")
                 else:
-                    factory = sn_recs.iloc[-1].to_dict()
-                    current = sn_recs.iloc[0].to_dict()
+                    factory = sn_recs.iloc[-1].to_dict() # 抓最早一筆作標準
+                    current = sn_recs.iloc[0].to_dict()  # 抓最新一筆作現況
                     st.success(f"✅ 找到 {len(sn_recs)} 筆紀錄。最後更新日期: {current['Date']}")
                     
                     st.markdown("#### 🛠️ 機械參數差異比對")
@@ -517,7 +537,7 @@ else:
 
         with tab_m2:
             fk = st.session_state.form_key
-            st.info("💡 已完整收錄 58 個機械參數，請依據 Pro-face 白底欄位對應填寫。")
+            st.info("💡 這裡已 100% 完整收錄您指定的 56 個機械參數，請依據 Pro-face 白底欄位對應填寫。")
             with st.form(f"mach_log_f_{fk}", clear_on_submit=False):
                 c1, c2 = st.columns(2)
                 m_sn = c1.text_input("機台序號 SN (必填)", key=f"m_sn_{fk}")
@@ -533,24 +553,29 @@ else:
                             input_vals[k] = cols[i % 3].text_input(label, key=f"m_i_{k}_{fk}")
                 
                 st.write("---")
-                m_re = st.text_area("修改原因 / 現場客變備註")
+                m_re = st.text_area("修改原因 / 現場客變備註", placeholder="詳細記錄本次修改了哪些參數，以及修改原因。")
                 
                 msg_box = st.empty()
-                if st.session_state.msg_mach_log: msg_box.success(st.session_state.msg_mach_log); st.session_state.msg_mach_log = ""
+                if st.session_state.msg_mach_log:
+                    msg_box.success(st.session_state.msg_mach_log)
+                    st.session_state.msg_mach_log = ""
 
-                if st.form_submit_button("💾 一鍵儲存 63 欄位設備履歷"):
+                if st.form_submit_button("💾 一鍵儲存 62 欄位設備履歷"):
                     if m_sn and m_cu:
-                        with st.spinner("資料打包中..."):
+                        with st.spinner("資料比對打包中..."):
                             log_id = datetime.now(tz_tw).strftime("MACH-%y%m%d-%H%M")
-                            row_data = [log_id, datetime.now(tz_tw).strftime("%Y-%m-%d %H:%M"), st.session_state.user_name, m_cu, m_sn]
+                            date_str = datetime.now(tz_tw).strftime("%Y-%m-%d %H:%M")
+                            
+                            row_data = [log_id, date_str, st.session_state.user_name, m_cu, m_sn]
                             for keys in MACHINE_PARAM_GROUPS.values():
                                 for k in keys: row_data.append(input_vals[k])
                             row_data.append(m_re)
+                            
                             sheet_mach.append_row(row_data)
-                            st.session_state.msg_mach_log = f"✅ 設備 {m_sn} 的參數已全數建檔成功！"
+                            st.session_state.msg_mach_log = f"✅ 設備 {m_sn} 的 62 項資料已全數建檔成功！"
                             st.session_state.form_key += 1
                             st.cache_data.clear(); st.rerun()
-                    else: st.error("⚠️ 機台序號與客戶為必填！")
+                    else: st.error("⚠️ 機台序號與客戶廠區為必填欄位！")
 
     # ---------------------------------------------------------
     # 模式 D：🧮 產品厚度計算機
@@ -586,7 +611,7 @@ else:
             st.write("---")
             st.markdown(f"""<div class="calc-green">🎯 輸入 3rd 產品厚度 (對應第 10 項)：{val_10:.2f}</div>""", unsafe_allow_html=True)
             st.markdown(f"""<div class="calc-yellow" style="margin-top:15px; border-left: 5px solid #FF8F00;">11. 膜尚可壓縮量：{val_11:.2f}</div>""", unsafe_allow_html=True)
-            
+
     # ---------------------------------------------------------
     # 模式 E：👑 管理員後台
     # ---------------------------------------------------------
