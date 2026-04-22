@@ -556,11 +556,38 @@ else:
     # 模式 D：🧮 產品厚度計算機
     # ---------------------------------------------------------
     elif app_mode == "🧮 產品厚度計算機":
-        st.info("輸入測量值進行自動運算")
-        v1 = st.number_input("板材厚度", value=0.0, step=0.1)
-        v2 = st.number_input("膜材厚度", value=0.0, step=0.1)
-        st.markdown(f"<div class='calc-green'>🎯 建議 3rd 厚度設定：{v1 + v2:.2f} mm</div>", unsafe_allow_html=True)
+        st.markdown("## 🧮 產品厚度計算機")
+        st.info("💡 請在下方輸入框填寫測量數值，系統將即時為您運算。**黃色背景**為系統自動計算的結果，**綠色框框**即為應輸入至機台 3rd 的目標產品厚度。")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown("### 【1st 前】測量與設定")
+            val_1 = st.number_input("1. 板材厚度 (不含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+            val_2 = st.number_input("2. 板材厚度 (含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+            val_3 = val_2 - val_1
+            st.markdown(f"<div class='calc-yellow'>3. 線路、銅柱高：{val_3:.2f}</div>", unsafe_allow_html=True)
+            st.write("---")
+            val_4 = st.number_input("4. COVER 厚度 (僅供紀錄)", value=0.00, step=0.01, format="%.2f")
+            val_5 = st.number_input("5. 膜材 厚度", value=0.00, step=0.01, format="%.2f")
+            val_6 = st.number_input("6. PET 厚度", value=0.00, step=0.01, format="%.2f")
+            val_7 = val_1 + val_5 + val_6
+            val_8 = val_2 + val_5 + val_6
+            st.markdown(f"<div class='calc-yellow'>7. 壓合前總厚度 (不含)：{val_7:.2f}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='calc-yellow'>8. 壓合前總厚度 (含)：{val_8:.2f}</div>", unsafe_allow_html=True)
 
+        with col2:
+            st.markdown("### 【1st 後】測量與計算")
+            val_9 = st.number_input("9. 板材厚度 (不含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+            gap_9 = val_7 - val_9 if val_9 > 0 else 0.0
+            st.markdown(f"<div class='calc-yellow'>壓合前後差距 (7 減 9)：{gap_9:.2f}</div>", unsafe_allow_html=True)
+            st.write("---")
+            val_10 = st.number_input("10. 板材厚度 (含線路、銅柱)", value=0.00, step=0.01, format="%.2f")
+            gap_10 = val_8 - val_10 if val_10 > 0 else 0.0
+            st.markdown(f"<div class='calc-yellow'>壓合前後差距 (8 減 10)：{gap_10:.2f}</div>", unsafe_allow_html=True)
+            val_11 = val_5 - val_3 - gap_10 if val_10 > 0 else 0.0
+            st.write("---")
+            st.markdown(f"""<div class="calc-green">🎯 輸入 3rd 產品厚度 (對應第 10 項)：{val_10:.2f}</div>""", unsafe_allow_html=True)
+            st.markdown(f"""<div class="calc-yellow" style="margin-top:15px; border-left: 5px solid #FF8F00;">11. 膜尚可壓縮量：{val_11:.2f}</div>""", unsafe_allow_html=True)
+            
     # ---------------------------------------------------------
     # 模式 E：👑 管理員後台
     # ---------------------------------------------------------
