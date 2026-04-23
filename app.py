@@ -224,7 +224,10 @@ else:
                     st.download_button("📥 單筆匯出", data=pd.DataFrame([row]).to_csv(index=False).encode('utf-8-sig'), file_name=f"{row['Log_ID']}.csv", key=f"dl_m_{row['Log_ID']}")
                 with c_card:
                     photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
-                    st.markdown(f'<div class="glide-card"><div class="glide-title">{row["Component"]} <span style="font-size:12px; color:#999;">({row["Log_ID"]})</span></div><div class="glide-tag">📅 {row["Date"]}</div><div class="glide-tag">🏢 {row["Customer"]}</div><div class="glide-tag">⚙️ {row["Machine_Model"]}</div><div class="glide-tag-user">👤 {row.get("Engineer", "")}</div><br><b>狀況：</b>{row["Issue_Desc"]}<br><b>💡 解法：</b>{row["Solution"]}{photo_html}</div>', unsafe_allow_html=True)
+                    # 📌 解決 HTML 換行消失的問題，將 \n 轉為 <br>
+                    v_issue = str(row["Issue_Desc"]).replace('\n', '<br>')
+                    v_sol = str(row["Solution"]).replace('\n', '<br>')
+                    st.markdown(f'<div class="glide-card"><div class="glide-title">{row["Component"]} <span style="font-size:12px; color:#999;">({row["Log_ID"]})</span></div><div class="glide-tag">📅 {row["Date"]}</div><div class="glide-tag">🏢 {row["Customer"]}</div><div class="glide-tag">⚙️ {row["Machine_Model"]}</div><div class="glide-tag-user">👤 {row.get("Engineer", "")}</div><br><b>狀況：</b><br>{v_issue}<br><br><b>💡 解法：</b><br>{v_sol}{photo_html}</div>', unsafe_allow_html=True)
                 st.markdown("<hr style='border-top: 2px dashed #ccc; margin: 10px 0px 30px 0px;'>", unsafe_allow_html=True)
 
         with tab2:
@@ -235,8 +238,8 @@ else:
                 with c2: m_cn = st.text_input("自填客戶")
                 m_ma = st.selectbox("機型", ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"])
                 m_comp = st.selectbox("異常部件", ["預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"])
-                m_is = st.text_area("問題描述")
-                m_so = st.text_area("解決方案")
+                m_is = st.text_area("問題描述 (支援換行)")
+                m_so = st.text_area("解決方案 (支援換行)")
                 m_up = st.file_uploader("🖼️ 照片", type=['jpg','png'])
                 
                 m_msg = st.empty()
@@ -316,7 +319,11 @@ else:
                     p_blk = f"<div style='background-color:#F9F9F9; padding:8px; border-radius:6px; font-size:12px; color:#555;'>{'<br><br>'.join(blk)}</div>" if blk else ""
                     s_blk = f"<div class='glide-subtitle'><b>基材/膜材</b><br>{h_sub}</div>" if h_sub else ""
 
-                    st.markdown(f'<div class="glide-card"><div class="glide-title">{row.get("Equipment","")} <span style="font-size:12px; color:#999;">({row["Log_ID"]})</span></div><div class="glide-tag">📅 {row["Date"]}</div><div class="glide-tag">🏢 {row["Customer"]}</div><div class="glide-tag-user">👤 {row.get("Operator","")}</div><div class="glide-tag">📊 自評: {row.get("Self_Eval","")}</div>{s_blk}{p_blk}<br><b>備註：</b>{row["Remarks"]}<br><b>反饋：</b>{row["Feedback"]}{p_html}</div>', unsafe_allow_html=True)
+                    # 📌 解決 HTML 換行消失的問題
+                    v_rem = str(row["Remarks"]).replace('\n', '<br>')
+                    v_fb = str(row["Feedback"]).replace('\n', '<br>')
+
+                    st.markdown(f'<div class="glide-card"><div class="glide-title">{row.get("Equipment","")} <span style="font-size:12px; color:#999;">({row["Log_ID"]})</span></div><div class="glide-tag">📅 {row["Date"]}</div><div class="glide-tag">🏢 {row["Customer"]}</div><div class="glide-tag-user">👤 {row.get("Operator","")}</div><div class="glide-tag">📊 自評: {row.get("Self_Eval","")}</div>{s_blk}{p_blk}<br><b>備註：</b><br>{v_rem}<br><br><b>反饋：</b><br>{v_fb}{p_html}</div>', unsafe_allow_html=True)
                 st.markdown("<hr style='border-top: 2px dashed #ccc; margin: 10px 0px 30px 0px;'>", unsafe_allow_html=True)
 
         with tab2:
@@ -478,9 +485,10 @@ else:
                             st.cache_data.clear(); st.success("更新成功！")
 
     # ---------------------------------------------------------
-    # 模式 C：⚙️ 設備機械履歷 (100% 同步 HMI 畫面排版 - 對齊 63 欄位)
+    # 模式 C：⚙️ 設備機械履歷 (100% 同步 HMI 畫面排版)
     # ---------------------------------------------------------
     elif app_mode == "⚙️ 設備機械履歷":
+        # 📌 100% 依據 A1~BK1 共 63 個欄位配置，精準分類
         MACHINE_PARAM_GROUPS = {
             "A區": ["A_D120_下限位置極限", "A_D122_真空位置下限極限", "A_D314_壓合恆定速度", "A_D6064_加速", "A_D6065_減速", "A_D6090_待機位置", "A_D6092_下限位置", "A_D452_壓力異常限值", "A_D170_真空大氣開放時間", "A_D176_不抽真空時轉矩下限", "A_D177_抽真空時轉矩下限", "A_D854_Film咬合保持"],
             "B區": ["B_D40_驅動軸間隔移動量", "B_D6156_加速時間", "B_D6157_減速時間", "B_D46_張力初始", "B_D47_張力初始時定數", "B_D48_品種張力時定數", "B_D714_加速時間", "B_D715_減速時間", "B_D716_Film送帶速度", "B_D717_工序時間", "B_D718_傳送部擋板停止速度", "B_D328_入口異常時間", "B_D514、520_自動運行中擋板上升延遲"],
@@ -526,15 +534,20 @@ else:
                                     cls = "diff-alert" if is_diff else "diff-safe"
                                     txt = f"🚨 已變更 ({b_label}: {v_b})" if is_diff else f"✅ 與{b_label}相同"
                                     st.markdown(f"<div class='{cls}'><small style='color:#555;'>{label}</small><br><b style='font-size:16px;'>{v_c}</b> <span style='float:right; font-size:12px;'>{txt}</span></div>", unsafe_allow_html=True)
-                    st.info(f"📝 **最新客變備註：**\n{current.get('Remarks', '無')}")
+                    
+                    # 解決備註的換行問題
+                    m_rem = str(current.get('Remarks', '無')).replace('\n', '<br>')
+                    st.info(f"📝 **最新客變備註：**<br>{m_rem}", icon="📝")
 
         with tab_m2:
             fk = st.session_state.form_key
             st.info("💡 填寫介面已 100% 還原 HMI 畫面分佈，包含您提供的 A 到 BK 共 63 個正確欄位。")
             with st.form(f"mach_log_f_{fk}", clear_on_submit=False):
-                c1, c2 = st.columns(2)
+                c1, c2, c3 = st.columns(3)
                 m_sn = c1.text_input("機台序號 SN (必填)", key=f"m_sn_{fk}")
                 m_cu = c2.selectbox("客戶廠區 (必填)", [""] + unique_cust, key=f"m_cu_{fk}")
+                # 📌 加入日期選擇器，方便事後補登
+                m_dt = c3.date_input("記錄日期", datetime.now(tz_tw).date(), key=f"m_dt_{fk}")
                 st.write("---")
                 
                 input_vals = {}
@@ -590,7 +603,7 @@ else:
                         for k in keys_E[2:]: mk_input(k)
                 
                 st.write("---")
-                m_re = st.text_area("修改原因 / 現場客變備註", placeholder="詳細記錄本次修改了哪些參數，以及修改原因。")
+                m_re = st.text_area("修改原因 / 現場客變備註", placeholder="詳細記錄本次修改了哪些參數，以及修改原因。(支援換行)")
                 
                 msg_box = st.empty()
                 if st.session_state.msg_mach_log:
@@ -601,9 +614,9 @@ else:
                     if m_sn and m_cu:
                         with st.spinner("資料打包寫入中..."):
                             log_id = datetime.now(tz_tw).strftime("MACH-%y%m%d-%H%M")
-                            date_str = datetime.now(tz_tw).strftime("%Y-%m-%d %H:%M")
+                            # 📌 使用者選定的日期
+                            date_str = m_dt.strftime("%Y-%m-%d")
                             
-                            # 📌 完美依照你給的 A1~BK1 順序寫入！
                             row_data = [log_id, date_str, st.session_state.user_name, m_cu, m_sn]
                             for k in MACHINE_PARAM_GROUPS["A區"]: row_data.append(input_vals[k])
                             for k in MACHINE_PARAM_GROUPS["B區"]: row_data.append(input_vals[k])
