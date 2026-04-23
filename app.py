@@ -122,14 +122,14 @@ st.markdown("""
 .glide-title { font-size: 16px; font-weight: 700; color: #333333; margin-bottom: 4px; }
 .glide-subtitle { font-size: 13px; color: #555555; margin-bottom: 10px; line-height: 1.4; }
 .glide-tag { background-color: #FFF3E0; color: #E65100; padding: 3px 8px; border-radius: 12px; font-size: 11px; display: inline-block; margin-right: 4px; margin-bottom: 6px;}
+.glide-tag-user { background-color: #E3F2FD; color: #1565C0; padding: 3px 8px; border-radius: 12px; font-size: 11px; display: inline-block; margin-right: 4px; margin-bottom: 6px;}
 .glide-solution { font-size: 13px; color: #D84315; background-color: #FBE9E7; padding: 8px; border-radius: 6px; margin-top: 6px; }
 .glide-img { width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #eee; }
 .diff-alert { background-color: #FFEBEE; border-left: 5px solid #D32F2F; padding: 10px; border-radius: 8px; margin-bottom: 10px; color: #C62828; }
 .diff-safe { background-color: #F1F8E9; border-left: 5px solid #4CAF50; padding: 10px; border-radius: 8px; margin-bottom: 10px; color: #2E7D32; }
 .calc-yellow { background-color: #FFF9C4; color: #333333; padding: 8px 12px; border-radius: 8px; border-left: 5px solid #FBC02D; font-weight: bold; margin-bottom: 10px; }
 .calc-green { background-color: #E8F5E9; padding: 12px; border-radius: 8px; border-left: 6px solid #4CAF50; font-size: 18px; font-weight: bold; color: #2E7D32; margin-top: 10px; }
-.hmi-section { background-color: #f4f6f8; padding: 10px; border-radius: 8px; margin-bottom: 10px; }
-.hmi-title { font-size: 14px; font-weight: bold; color: #1565C0; margin-bottom: 8px; }
+.hmi-title { font-size: 13px; font-weight: bold; color: #1565C0; margin-bottom: 8px; border-bottom: 1px solid #1565C0; padding-bottom: 3px; margin-top: 15px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -224,7 +224,7 @@ else:
                     st.download_button("📥 單筆匯出", data=pd.DataFrame([row]).to_csv(index=False).encode('utf-8-sig'), file_name=f"{row['Log_ID']}.csv", key=f"dl_m_{row['Log_ID']}")
                 with c_card:
                     photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
-                    st.markdown(f'<div class="glide-card"><div class="glide-title">{row["Component"]} <span style="font-size:12px; color:#999;">({row["Log_ID"]})</span></div><div class="glide-tag">📅 {row["Date"]}</div><div class="glide-tag">🏢 {row["Customer"]}</div><div class="glide-tag">⚙️ {row["Machine_Model"]}</div><br><b>狀況：</b>{row["Issue_Desc"]}<br><b>💡 解法：</b>{row["Solution"]}{photo_html}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="glide-card"><div class="glide-title">{row["Component"]} <span style="font-size:12px; color:#999;">({row["Log_ID"]})</span></div><div class="glide-tag">📅 {row["Date"]}</div><div class="glide-tag">🏢 {row["Customer"]}</div><div class="glide-tag">⚙️ {row["Machine_Model"]}</div><div class="glide-tag-user">👤 {row.get("Engineer", "")}</div><br><b>狀況：</b>{row["Issue_Desc"]}<br><b>💡 解法：</b>{row["Solution"]}{photo_html}</div>', unsafe_allow_html=True)
                 st.markdown("<hr style='border-top: 2px dashed #ccc; margin: 10px 0px 30px 0px;'>", unsafe_allow_html=True)
 
         with tab2:
@@ -316,7 +316,7 @@ else:
                     p_blk = f"<div style='background-color:#F9F9F9; padding:8px; border-radius:6px; font-size:12px; color:#555;'>{'<br><br>'.join(blk)}</div>" if blk else ""
                     s_blk = f"<div class='glide-subtitle'><b>基材/膜材</b><br>{h_sub}</div>" if h_sub else ""
 
-                    st.markdown(f'<div class="glide-card"><div class="glide-title">{row.get("Equipment","")} <span style="font-size:12px; color:#999;">({row["Log_ID"]})</span></div><div class="glide-tag">📅 {row["Date"]}</div><div class="glide-tag">🏢 {row["Customer"]}</div><div class="glide-tag">📊 自評: {row.get("Self_Eval","")}</div>{s_blk}{p_blk}<br><b>備註：</b>{row["Remarks"]}<br><b>反饋：</b>{row["Feedback"]}{p_html}</div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="glide-card"><div class="glide-title">{row.get("Equipment","")} <span style="font-size:12px; color:#999;">({row["Log_ID"]})</span></div><div class="glide-tag">📅 {row["Date"]}</div><div class="glide-tag">🏢 {row["Customer"]}</div><div class="glide-tag-user">👤 {row.get("Operator","")}</div><div class="glide-tag">📊 自評: {row.get("Self_Eval","")}</div>{s_blk}{p_blk}<br><b>備註：</b>{row["Remarks"]}<br><b>反饋：</b>{row["Feedback"]}{p_html}</div>', unsafe_allow_html=True)
                 st.markdown("<hr style='border-top: 2px dashed #ccc; margin: 10px 0px 30px 0px;'>", unsafe_allow_html=True)
 
         with tab2:
@@ -478,13 +478,12 @@ else:
                             st.cache_data.clear(); st.success("更新成功！")
 
     # ---------------------------------------------------------
-    # 模式 C：⚙️ 設備機械履歷 (100% 同步 HMI 畫面排版)
+    # 模式 C：⚙️ 設備機械履歷 (100% 同步 HMI 畫面排版 - 對齊 63 欄位)
     # ---------------------------------------------------------
     elif app_mode == "⚙️ 設備機械履歷":
-        # 📌 完整的 56 個參數，將依照 HMI 畫面邏輯重新分組配置 UI
         MACHINE_PARAM_GROUPS = {
             "A區": ["A_D120_下限位置極限", "A_D122_真空位置下限極限", "A_D314_壓合恆定速度", "A_D6064_加速", "A_D6065_減速", "A_D6090_待機位置", "A_D6092_下限位置", "A_D452_壓力異常限值", "A_D170_真空大氣開放時間", "A_D176_不抽真空時轉矩下限", "A_D177_抽真空時轉矩下限", "A_D854_Film咬合保持"],
-            "B區": ["B_D40_驅動軸間隔移動量", "B_D6156_加速時間", "B_D6157_減速時間", "B_D46_張力初始", "B_D47_張力初始時定數", "B_D48_品種張力時定數", "B_D714_加速時間", "B_D715_減速時間", "B_D717_工序時間", "B_D718_傳送部擋板停止速度", "B_D328_入口異常時間", "B_D514、520_自動運行中擋板上升延遲"],
+            "B區": ["B_D40_驅動軸間隔移動量", "B_D6156_加速時間", "B_D6157_減速時間", "B_D46_張力初始", "B_D47_張力初始時定數", "B_D48_品種張力時定數", "B_D714_加速時間", "B_D715_減速時間", "B_D716_Film送帶速度", "B_D717_工序時間", "B_D718_傳送部擋板停止速度", "B_D328_入口異常時間", "B_D514、520_自動運行中擋板上升延遲"],
             "D1區": ["D_D740_壓合台壓力異常範圍", "D_D742_上升傳感器延遲時間", "D_D743_真空大氣開放時間", "D_D746_高壓ON 逆向壓力時間", "D_D747_壓合台必要推力", "D_D748_逆壓壓力", "D_D749_加壓電控閥調節", "D_D750_逆壓電控閥調節", "D_D782_加壓異常時間", "D_D790_下降時殘留壓力排放時間", "D_D791_自動運轉下降阻斷閥打開延遲", "D_D736_1st手動上升高壓輔助ON", "D_D870_增壓閥下限壓力", "D_D872_異常時間"],
             "D2區": ["D_D752_壓合台壓力異常範圍", "D_D754_上升傳感器延遲時間", "D_D755_真空大氣開放時間", "D_D758_高壓ON 逆向壓力時間", "D_D759_壓合台必要推力", "D_D760_逆壓壓力", "D_D761_加壓電控閥調節", "D_D762_逆壓電控閥調節", "D_D783_加壓異常時間", "D_D792_下降時殘留壓力排放時間", "D_D793_自動運轉下降阻斷閥打開延遲", "D_D738_2nd手動上升高壓輔助ON", "D_D873_增壓閥下限壓力", "D_D875_異常時間"],
             "E區": ["E_D460_定位1次定位量", "E_D462_壓力1次定位量", "E_D466_Fit模式SUS接觸搜索1次定位量", "E_D464_Fit控制推進時1次定位量"]
@@ -503,7 +502,7 @@ else:
                     factory = sn_recs.iloc[-1].to_dict()
                     previous = sn_recs.iloc[1].to_dict() if len(sn_recs) > 1 else factory
                     
-                    st.success(f"✅ 找到 {len(sn_recs)} 筆紀錄。最新紀錄: {current['Date']}")
+                    st.success(f"✅ 找到 {len(sn_recs)} 筆紀錄。最新紀錄: {current['Date']} (由 {current.get('Engineer', '未登錄')} 更新)")
                     
                     baseline_mode = st.radio("🔄 選擇比對基準：", ["與「原廠設定」比對", "與「前次紀錄」比對"], horizontal=True)
                     if baseline_mode == "與「原廠設定」比對":
@@ -511,7 +510,7 @@ else:
                     else:
                         baseline_data, b_label, b_date = previous, "前次", previous['Date']
                         
-                    st.caption(f"📝 基準：{b_label}紀錄 ({b_date})")
+                    st.caption(f"📝 基準：{b_label}紀錄 ({b_date} | 工程師: {baseline_data.get('Engineer', '未登錄')})")
                     st.markdown("#### 🛠️ 機械參數差異比對")
                     
                     c1, c2 = st.columns(2)
@@ -531,45 +530,46 @@ else:
 
         with tab_m2:
             fk = st.session_state.form_key
-            st.info("💡 輸入框排版已 100% 依照您的 HMI 螢幕截圖配置，請直接對照畫面輸入白底數值。")
+            st.info("💡 填寫介面已 100% 還原 HMI 畫面分佈，包含您提供的 A 到 BK 共 63 個正確欄位。")
             with st.form(f"mach_log_f_{fk}", clear_on_submit=False):
                 c1, c2 = st.columns(2)
                 m_sn = c1.text_input("機台序號 SN (必填)", key=f"m_sn_{fk}")
                 m_cu = c2.selectbox("客戶廠區 (必填)", [""] + unique_cust, key=f"m_cu_{fk}")
                 st.write("---")
                 
-                # 收集輸入值的字典
                 input_vals = {}
                 def mk_input(k):
                     parts = k.split('_')
                     label = f"{parts[1]} {parts[2]}" if len(parts) >= 3 else parts[1]
                     input_vals[k] = st.text_input(label, key=f"m_i_{k}_{fk}")
 
-                # 📍 畫面 A 模擬
-                with st.expander("📍 畫面 A：機械參數 A", expanded=True):
-                    colA1, colA2 = st.columns(2)
+                # 📍 畫面 A
+                with st.expander("📍 畫面 A：機械參數 A (伺服與極限)", expanded=True):
+                    colA1, colA2, colA3 = st.columns(3)
                     with colA1:
-                        st.markdown("<div class='hmi-title'>▌ 4軸伺服壓合</div>", unsafe_allow_html=True)
-                        for k in ["A_D120_下限位置極限", "A_D122_真空位置下限極限", "A_D314_壓合恆定速度", "A_D6090_待機位置", "A_D6092_下限位置"]: mk_input(k)
+                        st.markdown("<div class='hmi-title'>▌ 上半部 (位置極限)</div>", unsafe_allow_html=True)
+                        for k in ["A_D120_下限位置極限", "A_D122_真空位置下限極限", "A_D6090_待機位置", "A_D6092_下限位置"]: mk_input(k)
                     with colA2:
-                        st.markdown("<div class='hmi-title'>▌ 速度與壓力/真空</div>", unsafe_allow_html=True)
-                        for k in ["A_D6064_加速", "A_D6065_減速", "A_D452_壓力異常限值", "A_D170_真空大氣開放時間", "A_D176_不抽真空時轉矩下限", "A_D177_抽真空時轉矩下限"]: mk_input(k)
-                        st.markdown("<div class='hmi-title'>▌ Film咬合</div>", unsafe_allow_html=True)
-                        mk_input("A_D854_Film咬合保持")
+                        st.markdown("<div class='hmi-title'>▌ 中半部 (速度與轉矩)</div>", unsafe_allow_html=True)
+                        for k in ["A_D314_壓合恆定速度", "A_D6064_加速", "A_D6065_減速", "A_D176_不抽真空時轉矩下限", "A_D177_抽真空時轉矩下限"]: mk_input(k)
+                    with colA3:
+                        st.markdown("<div class='hmi-title'>▌ 右半部 (壓力與時間)</div>", unsafe_allow_html=True)
+                        for k in ["A_D452_壓力異常限值", "A_D170_真空大氣開放時間", "A_D854_Film咬合保持"]: mk_input(k)
 
-                # 📍 畫面 B 模擬
-                with st.expander("📍 畫面 B：機械參數 B", expanded=True):
-                    colB1, colB2 = st.columns(2)
+                # 📍 畫面 B 
+                with st.expander("📍 畫面 B：機械參數 B (馬達與傳送)", expanded=True):
+                    colB1, colB2, colB3 = st.columns(3)
                     with colB1:
-                        st.markdown("<div class='hmi-title'>▌ 驅動輥伺服電機</div>", unsafe_allow_html=True)
+                        st.markdown("<div class='hmi-title'>▌ 驅動輥伺服</div>", unsafe_allow_html=True)
                         for k in ["B_D40_驅動軸間隔移動量", "B_D6156_加速時間", "B_D6157_減速時間"]: mk_input(k)
-                        st.markdown("<div class='hmi-title'>▌ 出帶伺服電機</div>", unsafe_allow_html=True)
-                        for k in ["B_D46_張力初始", "B_D47_張力初始時定數", "B_D48_品種張力時定數"]: mk_input(k)
                     with colB2:
+                        st.markdown("<div class='hmi-title'>▌ 出帶伺服</div>", unsafe_allow_html=True)
+                        for k in ["B_D46_張力初始", "B_D47_張力初始時定數", "B_D48_品種張力時定數"]: mk_input(k)
+                    with colB3:
                         st.markdown("<div class='hmi-title'>▌ 入料傳送</div>", unsafe_allow_html=True)
-                        for k in ["B_D714_加速時間", "B_D715_減速時間", "B_D717_工序時間", "B_D718_傳送部擋板停止速度", "B_D328_入口異常時間", "B_D514、520_自動運行中擋板上升延遲"]: mk_input(k)
+                        for k in ["B_D714_加速時間", "B_D715_減速時間", "B_D716_Film送帶速度", "B_D717_工序時間", "B_D718_傳送部擋板停止速度", "B_D328_入口異常時間", "B_D514、520_自動運行中擋板上升延遲"]: mk_input(k)
 
-                # 📍 畫面 D 模擬
+                # 📍 畫面 D 
                 with st.expander("📍 畫面 D：機械參數 D (壓合台)", expanded=True):
                     colD1, colD2 = st.columns(2)
                     with colD1:
@@ -579,7 +579,7 @@ else:
                         st.markdown("<div class='hmi-title'>▌ 2nd 壓合台</div>", unsafe_allow_html=True)
                         for k in MACHINE_PARAM_GROUPS["D2區"]: mk_input(k)
 
-                # 📍 畫面 E 模擬
+                # 📍 畫面 E
                 with st.expander("📍 畫面 E：機械參數 E (定位)", expanded=True):
                     st.markdown("<div class='hmi-title'>▌ 4軸伺服壓合 重要數據</div>", unsafe_allow_html=True)
                     colE1, colE2 = st.columns(2)
@@ -597,29 +597,23 @@ else:
                     msg_box.success(st.session_state.msg_mach_log)
                     st.session_state.msg_mach_log = ""
 
-                if st.form_submit_button("💾 一鍵儲存 62 欄位設備履歷"):
+                if st.form_submit_button("💾 一鍵儲存 63 欄位設備履歷"):
                     if m_sn and m_cu:
                         with st.spinner("資料打包寫入中..."):
                             log_id = datetime.now(tz_tw).strftime("MACH-%y%m%d-%H%M")
                             date_str = datetime.now(tz_tw).strftime("%Y-%m-%d %H:%M")
                             
-                            # 精準照 A1~BJ1 順序寫入 (總共 62 欄)
+                            # 📌 完美依照你給的 A1~BK1 順序寫入！
                             row_data = [log_id, date_str, st.session_state.user_name, m_cu, m_sn]
-                            # A 區 (12)
                             for k in MACHINE_PARAM_GROUPS["A區"]: row_data.append(input_vals[k])
-                            # B 區 (12)
                             for k in MACHINE_PARAM_GROUPS["B區"]: row_data.append(input_vals[k])
-                            # D1 區 (14)
                             for k in MACHINE_PARAM_GROUPS["D1區"]: row_data.append(input_vals[k])
-                            # D2 區 (14)
                             for k in MACHINE_PARAM_GROUPS["D2區"]: row_data.append(input_vals[k])
-                            # E 區 (4)
                             for k in MACHINE_PARAM_GROUPS["E區"]: row_data.append(input_vals[k])
-                            # 備註 (1)
                             row_data.append(m_re)
                             
                             sheet_mach.append_row(row_data)
-                            st.session_state.msg_mach_log = f"✅ 設備 {m_sn} 的 62 項資料已全數建檔成功！"
+                            st.session_state.msg_mach_log = f"✅ 設備 {m_sn} 的 63 項資料已全數建檔成功！"
                             st.session_state.form_key += 1
                             st.cache_data.clear(); st.rerun()
                     else: st.error("⚠️ 機台序號與客戶廠區為必填欄位！")
