@@ -272,7 +272,7 @@ else:
                             st.cache_data.clear(); st.success("更新成功！")
 
     # ---------------------------------------------------------
-    # 模式 B：🧪 DEMO 實驗紀錄 (100% 完整還原)
+    # 模式 B：🧪 DEMO 實驗紀錄 
     # ---------------------------------------------------------
     elif app_mode == "🧪 DEMO 實驗紀錄":
         tab1, tab2, tab3, tab4 = st.tabs(["🔍 參數查詢", "➕ 新增 NT+CVP", "➕ 新增 V-160", "✏️ 修改紀錄"])
@@ -476,7 +476,7 @@ else:
                             st.cache_data.clear(); st.success("更新成功！")
 
     # ---------------------------------------------------------
-    # 模式 C：⚙️ 設備機械履歷 (100% 吻合 62 欄位設計)
+    # 模式 C：⚙️ 設備機械履歷 (100% 吻合 62 欄位設計 + 動態比對切換)
     # ---------------------------------------------------------
     elif app_mode == "⚙️ 設備機械履歷":
         MACHINE_PARAM_GROUPS = {
@@ -513,13 +513,31 @@ else:
             search_sn = st.text_input("🔍 輸入機台序號 (SN) 查詢：", placeholder="例如: CVP-1500-001")
             if search_sn:
                 sn_recs = df_mach[df_mach['Equipment_SN'].astype(str).str.contains(search_sn, case=False)]
-                if sn_recs.empty: st.warning("找不到此機台。")
+                if sn_recs.empty: 
+                    st.warning("找不到此機台。")
                 else:
-                    factory = sn_recs.iloc[-1].to_dict() # 抓最早一筆作標準
-                    current = sn_recs.iloc[0].to_dict()  # 抓最新一筆作現況
-                    st.success(f"✅ 找到 {len(sn_recs)} 筆紀錄。最後更新日期: {current['Date']}")
+                    # 抓取三個時間維度的資料
+                    current = sn_recs.iloc[0].to_dict()  # 最新現狀
+                    factory = sn_recs.iloc[-1].to_dict() # 最舊出廠值
+                    previous = sn_recs.iloc[1].to_dict() if len(sn_recs) > 1 else factory # 上一次修改紀錄
                     
+                    st.success(f"✅ 找到 {len(sn_recs)} 筆紀錄。最新紀錄日期: {current['Date']}")
+                    
+                    # 📌 全新功能：動態切換比對基準！
+                    baseline_mode = st.radio("🔄 選擇比對基準：", ["與「原廠設定」比對", "與「前次紀錄」比對"], horizontal=True)
+                    
+                    if baseline_mode == "與「原廠設定」比對":
+                        baseline_data = factory
+                        b_label = "原廠"
+                        b_date = factory['Date']
+                    else:
+                        baseline_data = previous
+                        b_label = "前次"
+                        b_date = previous['Date']
+                        
+                    st.caption(f"📝 目前比對基準：{b_label}紀錄 ({b_date})")
                     st.markdown("#### 🛠️ 機械參數差異比對")
+                    
                     c1, c2 = st.columns(2)
                     for i, (grp_name, keys) in enumerate(MACHINE_PARAM_GROUPS.items()):
                         col = c1 if i % 2 == 0 else c2
@@ -528,10 +546,14 @@ else:
                                 for k in keys:
                                     parts = k.split('_')
                                     label = f"{parts[1]} {parts[2]}" if len(parts) >= 3 else parts[1]
-                                    v_s, v_c = str(factory.get(k, '')), str(current.get(k, ''))
-                                    is_diff = v_s != v_c and v_s != ""
+                                    
+                                    # 利用選擇的 baseline_data 進行比對
+                                    v_b, v_c = str(baseline_data.get(k, '')), str(current.get(k, ''))
+                                    is_diff = v_b != v_c and v_b != ""
+                                    
                                     cls = "diff-alert" if is_diff else "diff-safe"
-                                    txt = f"🚨 已客變 (原廠: {v_s})" if is_diff else "✅ 原廠值"
+                                    txt = f"🚨 已變更 ({b_label}: {v_b})" if is_diff else f"✅ 與{b_label}相同"
+                                    
                                     st.markdown(f"<div class='{cls}'><small style='color:#555;'>{label}</small><br><b style='font-size:16px;'>{v_c}</b> <span style='float:right; font-size:12px;'>{txt}</span></div>", unsafe_allow_html=True)
                     st.info(f"📝 **最新客變備註：**\n{current.get('Remarks', '無')}")
 
@@ -562,7 +584,7 @@ else:
 
                 if st.form_submit_button("💾 一鍵儲存 62 欄位設備履歷"):
                     if m_sn and m_cu:
-                        with st.spinner("資料比對打包中..."):
+                        with st.spinner("資料打包中..."):
                             log_id = datetime.now(tz_tw).strftime("MACH-%y%m%d-%H%M")
                             date_str = datetime.now(tz_tw).strftime("%Y-%m-%d %H:%M")
                             
