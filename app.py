@@ -198,7 +198,8 @@ else:
             for key in list(st.session_state.keys()): del st.session_state[key]
             st.rerun()
 
-    st.markdown(f"<h2>{app_mode}</h2>", unsafe_allow_html=True)
+    if app_mode != "🧮 產品厚度計算機":
+        st.markdown(f"<h2>{app_mode}</h2>", unsafe_allow_html=True)
 
     # ---------------------------------------------------------
     # 模式 A：現場維修系統
@@ -220,7 +221,7 @@ else:
             for idx, row in filtered_m.iterrows():
                 c_card, c_action = st.columns([5, 2])
                 with c_action:
-                    st.checkbox("🔲 勾選此筆", key=f"chk_m_{row['Log_ID']}")
+                    st.checkbox("勾選此筆", key=f"chk_m_{row['Log_ID']}")
                     st.download_button("📥 單筆匯出", data=pd.DataFrame([row]).to_csv(index=False).encode('utf-8-sig'), file_name=f"{row['Log_ID']}.csv", key=f"dl_m_{row['Log_ID']}")
                 with c_card:
                     photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
@@ -297,7 +298,7 @@ else:
             for idx, row in filtered_d.iterrows():
                 c_card, c_action = st.columns([5, 2])
                 with c_action:
-                    st.checkbox("🔲 勾選此筆", key=f"chk_d_{row['Log_ID']}")
+                    st.checkbox("勾選此筆", key=f"chk_d_{row['Log_ID']}")
                     st.download_button("📥 單筆", data=pd.DataFrame([row]).to_csv(index=False).encode('utf-8-sig'), file_name=f"{row['Log_ID']}.csv", key=f"dl_d_{row['Log_ID']}")
                 with c_card:
                     p_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
@@ -485,10 +486,9 @@ else:
                             st.cache_data.clear(); st.success("更新成功！")
 
     # ---------------------------------------------------------
-    # 模式 C：⚙️ 設備機械履歷 (100% 同步 HMI 畫面排版)
+    # 模式 C：⚙️ 設備機械履歷 (100% 同步 HMI 畫面排版 - 對齊 63 欄位)
     # ---------------------------------------------------------
     elif app_mode == "⚙️ 設備機械履歷":
-        # 📌 100% 依據 A1~BK1 共 63 個欄位配置，精準分類
         MACHINE_PARAM_GROUPS = {
             "A區": ["A_D120_下限位置極限", "A_D122_真空位置下限極限", "A_D314_壓合恆定速度", "A_D6064_加速", "A_D6065_減速", "A_D6090_待機位置", "A_D6092_下限位置", "A_D452_壓力異常限值", "A_D170_真空大氣開放時間", "A_D176_不抽真空時轉矩下限", "A_D177_抽真空時轉矩下限", "A_D854_Film咬合保持"],
             "B區": ["B_D40_驅動軸間隔移動量", "B_D6156_加速時間", "B_D6157_減速時間", "B_D46_張力初始", "B_D47_張力初始時定數", "B_D48_品種張力時定數", "B_D714_加速時間", "B_D715_減速時間", "B_D716_Film送帶速度", "B_D717_工序時間", "B_D718_傳送部擋板停止速度", "B_D328_入口異常時間", "B_D514、520_自動運行中擋板上升延遲"],
@@ -535,7 +535,7 @@ else:
                                     txt = f"🚨 已變更 ({b_label}: {v_b})" if is_diff else f"✅ 與{b_label}相同"
                                     st.markdown(f"<div class='{cls}'><small style='color:#555;'>{label}</small><br><b style='font-size:16px;'>{v_c}</b> <span style='float:right; font-size:12px;'>{txt}</span></div>", unsafe_allow_html=True)
                     
-                    # 解決備註的換行問題
+                    # 📌 解決備註的換行問題
                     m_rem = str(current.get('Remarks', '無')).replace('\n', '\n\n')
                     st.info(f"**最新客變備註：**\n\n{m_rem}", icon="📝")
 
@@ -546,7 +546,6 @@ else:
                 c1, c2, c3 = st.columns(3)
                 m_sn = c1.text_input("機台序號 SN (必填)", key=f"m_sn_{fk}")
                 m_cu = c2.selectbox("客戶廠區 (必填)", [""] + unique_cust, key=f"m_cu_{fk}")
-                # 📌 加入日期選擇器，方便事後補登
                 m_dt = c3.date_input("記錄日期", datetime.now(tz_tw).date(), key=f"m_dt_{fk}")
                 st.write("---")
                 
@@ -614,7 +613,6 @@ else:
                     if m_sn and m_cu:
                         with st.spinner("資料打包寫入中..."):
                             log_id = datetime.now(tz_tw).strftime("MACH-%y%m%d-%H%M")
-                            # 📌 使用者選定的日期
                             date_str = m_dt.strftime("%Y-%m-%d")
                             
                             row_data = [log_id, date_str, st.session_state.user_name, m_cu, m_sn]
@@ -635,6 +633,7 @@ else:
     # 模式 D：🧮 產品厚度計算機
     # ---------------------------------------------------------
     elif app_mode == "🧮 產品厚度計算機":
+        st.markdown("## 🧮 產品厚度計算機")
         st.info("💡 請在下方輸入框填寫測量數值，系統將即時為您運算。**黃色背景**為系統自動計算的結果，**綠色框框**即為應輸入至機台 3rd 的目標產品厚度。")
         col1, col2 = st.columns(2)
         with col1:
