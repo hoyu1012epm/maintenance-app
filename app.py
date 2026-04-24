@@ -536,8 +536,8 @@ else:
                                     st.markdown(f"<div class='{cls}'><small style='color:#555;'>{label}</small><br><b style='font-size:16px;'>{v_c}</b> <span style='float:right; font-size:12px;'>{txt}</span></div>", unsafe_allow_html=True)
                     
                     # 解決備註的換行問題
-                    m_rem = str(current.get('Remarks', '無')).replace('\n', '<br>')
-                    st.info(f"📝 **最新客變備註：**<br>{m_rem}", icon="📝")
+                    m_rem = str(current.get('Remarks', '無')).replace('\n', '\n\n')
+                    st.info(f"**最新客變備註：**\n\n{m_rem}", icon="📝")
 
         with tab_m2:
             fk = st.session_state.form_key
