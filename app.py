@@ -20,7 +20,7 @@ if "must_change_pw" not in st.session_state: st.session_state.must_change_pw = F
 if "last_active" not in st.session_state: st.session_state.last_active = datetime.now(tz_tw)
 if "form_key" not in st.session_state: st.session_state.form_key = 0
 
-# 📌 訊息提示記憶體 (智慧不洗白防呆)
+# 📌 訊息提示記憶體
 if "msg_maint" not in st.session_state: st.session_state.msg_maint = ""
 if "msg_demo_nt" not in st.session_state: st.session_state.msg_demo_nt = ""
 if "msg_demo_v" not in st.session_state: st.session_state.msg_demo_v = ""
@@ -118,7 +118,6 @@ def load_data(mode):
 
 st.markdown("""
 <style>
-/* 📌 修正 Dark Mode 隱形字體問題：強制設定 color: #333333 */
 .glide-card { background-color: #ffffff; color: #333333; padding: 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 5px; border-left: 6px solid #FFA726; }
 .glide-title { font-size: 16px; font-weight: 700; color: #333333; margin-bottom: 4px; }
 .glide-subtitle { font-size: 13px; color: #555555; margin-bottom: 10px; line-height: 1.4; }
@@ -234,9 +233,11 @@ else:
         with tab2:
             fk = st.session_state.form_key
             with st.form(f"maint_form_{fk}", clear_on_submit=False):
-                c1, c2 = st.columns(2)
-                with c1: m_c = st.selectbox("選擇客戶", [""] + unique_cust)
-                with c2: m_cn = st.text_input("自填客戶")
+                # 📌 加回日期選擇器
+                c1, c2, c3 = st.columns(3)
+                with c1: m_dt = st.date_input("日期", datetime.now(tz_tw).date(), key=f"m_dt_{fk}")
+                with c2: m_c = st.selectbox("選擇客戶", [""] + unique_cust)
+                with c3: m_cn = st.text_input("自填客戶")
                 m_ma = st.selectbox("機型", ["NT-300", "NT-400", "CVP-600", "CVP-1600", "CVP-1500", "其他"])
                 m_comp = st.selectbox("異常部件", ["預貼機-投入", "預貼機-排出", "壓模機-卷出", "壓模機-1st", "壓模機-2nd", "壓模機-3rd", "壓模機-卷收", "控制介面 (HMI)", "PLC", "真空/氣壓系統", "溫控系統", "其他"])
                 m_is = st.text_area("問題描述 (支援換行)")
@@ -250,7 +251,7 @@ else:
                     if final_c and m_is:
                         log_id = datetime.now(tz_tw).strftime("REP-%y%m%d-%H%M")
                         p_url = upload_image(m_up, f"{log_id}.jpg") if m_up else ""
-                        sheet_maint.append_row([log_id, datetime.now(tz_tw).strftime("%Y-%m-%d"), st.session_state.user_name, final_c, m_ma, m_comp, m_is, m_so, p_url])
+                        sheet_maint.append_row([log_id, m_dt.strftime("%Y-%m-%d"), st.session_state.user_name, final_c, m_ma, m_comp, m_is, m_so, p_url])
                         st.session_state.msg_maint = f"✅ 成功單號：{log_id}"; st.session_state.form_key += 1
                         st.cache_data.clear(); st.rerun()
                     else: st.error("⚠️ 資料不完整")
@@ -333,9 +334,11 @@ else:
             c_dat = df_demo[df_demo['Log_ID'] == cln_sel.split(" - ")[0]].iloc[0].to_dict() if cln_sel else {}
 
             with st.form(f"d_nt_{fk}", clear_on_submit=False):
-                c1, c2 = st.columns(2)
-                with c1: d_c = st.selectbox("客戶", [""] + unique_cust, index=(unique_cust.index(c_dat.get('Customer'))+1 if c_dat.get('Customer') in unique_cust else 0))
-                with c2: d_cn = st.text_input("自填客戶", value=c_dat.get('Customer') if not d_c else "")
+                # 📌 加回日期選擇器
+                c1, c2, c3 = st.columns(3)
+                with c1: d_dt = st.date_input("日期", datetime.now(tz_tw).date(), key=f"d_dt_{fk}")
+                with c2: d_c = st.selectbox("客戶", [""] + unique_cust, index=(unique_cust.index(c_dat.get('Customer'))+1 if c_dat.get('Customer') in unique_cust else 0))
+                with c3: d_cn = st.text_input("自填客戶", value=c_dat.get('Customer') if not d_c else "")
                 d_eq = st.text_input("機台型號", value=c_dat.get('Equipment', ''))
                 
                 with st.expander("📍 基材與膜材"):
@@ -386,7 +389,7 @@ else:
                         f_st = d_sto if d_st == "其他" else d_st
                         f_fm = d_fmo if d_fm == "其他" else d_fm
                         pre_p = pack_params({"預貼溫度 (℃)": p_t, "預貼壓力 (MPa)": p_p, "預貼速度 (m/min)": p_s, "前後留邊量": p_m})
-                        sheet_demo.append_row([lid, datetime.now(tz_tw).strftime("%Y-%m-%d"), st.session_state.user_name, f_c, d_eq, f_st, d_ss, f_fm, d_fmod, pre_p, pack_params(l1_d), pack_params(l2_d), pack_params(l3_d), d_qt, d_ev, d_re, d_fb, p_url])
+                        sheet_demo.append_row([lid, d_dt.strftime("%Y-%m-%d"), st.session_state.user_name, f_c, d_eq, f_st, d_ss, f_fm, d_fmod, pre_p, pack_params(l1_d), pack_params(l2_d), pack_params(l3_d), d_qt, d_ev, d_re, d_fb, p_url])
                         st.session_state.msg_demo_nt = f"✅ 成功！單號：{lid}"; st.session_state.form_key += 1
                         st.cache_data.clear(); st.rerun()
                     else: st.error("⚠️ 請填寫完整")
@@ -398,9 +401,11 @@ else:
             c_dat_v = df_demo[df_demo['Log_ID'] == cln_sel_v.split(" - ")[0]].iloc[0].to_dict() if cln_sel_v else {}
 
             with st.form(f"d_v_{fk}", clear_on_submit=False):
-                c1, c2 = st.columns(2)
-                with c1: v_c = st.selectbox("客戶", [""] + unique_cust, index=(unique_cust.index(c_dat_v.get('Customer'))+1 if c_dat_v.get('Customer') in unique_cust else 0))
-                with c2: v_cn = st.text_input("自填客戶", value=c_dat_v.get('Customer') if not v_c else "")
+                # 📌 加回日期選擇器
+                c1, c2, c3 = st.columns(3)
+                with c1: v_dt = st.date_input("日期", datetime.now(tz_tw).date(), key=f"v_dt_{fk}")
+                with c2: v_c = st.selectbox("客戶", [""] + unique_cust, index=(unique_cust.index(c_dat_v.get('Customer'))+1 if c_dat_v.get('Customer') in unique_cust else 0))
+                with c3: v_cn = st.text_input("自填客戶", value=c_dat_v.get('Customer') if not v_c else "")
                 v_eq = st.text_input("機台型號", value="V-160", disabled=True)
                 
                 with st.expander("📍 基材與膜材"):
@@ -457,7 +462,7 @@ else:
                         f_st = v_sto if v_st == "其他" else v_st
                         f_fm = v_fmo if v_fm == "其他" else v_fm
                         v_dict = {"加壓模式": vm, "下真空時間 (sec)": vtv, "上溫度 (℃)": vtt, "下溫度 (℃)": vtb, "上硅膠墊垂落時間 (sec)": vdt, "上氣囊加壓壓力 (kgf/cm²)": vpt, "上氣囊加壓時間 (sec)": vtpt, "下加壓延遲時間 (sec)": vdb, "下硅膠墊垂落時間 (sec)": vdrb, "下加壓壓力 (kgf/cm²)": vpb, "下加壓時間 (sec)": vtpb}
-                        sheet_demo.append_row([lid, datetime.now(tz_tw).strftime("%Y-%m-%d"), st.session_state.user_name, f_c, "V-160", f_st, v_ss, f_fm, v_fmod, "無", pack_params(v_dict), "無", "無", v_qt, v_ev, v_re, v_fb, p_url])
+                        sheet_demo.append_row([lid, v_dt.strftime("%Y-%m-%d"), st.session_state.user_name, f_c, "V-160", f_st, v_ss, f_fm, v_fmod, "無", pack_params(v_dict), "無", "無", v_qt, v_ev, v_re, v_fb, p_url])
                         st.session_state.msg_demo_v = f"✅ 成功！單號：{lid}"; st.session_state.form_key += 1
                         st.cache_data.clear(); st.rerun()
                     else: st.error("⚠️ 請填寫完整")
@@ -491,7 +496,7 @@ else:
         MACHINE_PARAM_GROUPS = {
             "A區": ["A_D120_下限位置極限", "A_D122_真空位置下限極限", "A_D314_壓合恆定速度", "A_D6064_加速", "A_D6065_減速", "A_D6090_待機位置", "A_D6092_下限位置", "A_D452_壓力異常限值", "A_D170_真空大氣開放時間", "A_D176_不抽真空時轉矩下限", "A_D177_抽真空時轉矩下限", "A_D854_Film咬合保持"],
             "B區": ["B_D40_驅動軸間隔移動量", "B_D6156_加速時間", "B_D6157_減速時間", "B_D46_張力初始", "B_D47_張力初始時定數", "B_D48_品種張力時定數", "B_D714_加速時間", "B_D715_減速時間", "B_D716_Film送帶速度", "B_D717_工序時間", "B_D718_傳送部擋板停止速度", "B_D328_入口異常時間", "B_D514、520_自動運行中擋板上升延遲"],
-            "D1區": ["D_D740_壓合台壓力異常範圍", "D_D742_上升傳感器延遲時間", "D_D743_真空大氣開放時間", "D_D746_高壓ON 逆向壓力時間", "D_D747_壓合台必要推力", "D_D748_逆壓壓力", "D_D749_加壓電控閥調節", "D_D750_逆壓電控閥調節", "D_D782_加壓異常時間", "D_D790_下降時殘留壓力排放時間", "D_D791_自動運轉下降阻斷閥打開延遲", "D_D736_1st手動上升高壓輔助ON", "D_D870_增壓閥下限壓力", "D_D872_異常時間"],
+            "D1區": ["D_D740_壓合台壓力異常範圍", "D_D742_上升傳感器延遲時間", "D_D743_真空大氣開放時間", "D_D746_高壓ON 逆向壓力時間", "D_D747_壓合台必要推力", "D_D748_逆壓壓力", "D_D749_加壓電控閥調節", "D_D750_逆壓電控閥調節", "D_D782_加壓異常時間", "D_D790_下降時殘留壓力排放時間", "D_D791_自動運轉下降阻斷閥打開延遲", "D_D736_1st手 নিরাপদ上升高壓輔助ON", "D_D870_增壓閥下限壓力", "D_D872_異常時間"],
             "D2區": ["D_D752_壓合台壓力異常範圍", "D_D754_上升傳感器延遲時間", "D_D755_真空大氣開放時間", "D_D758_高壓ON 逆向壓力時間", "D_D759_壓合台必要推力", "D_D760_逆壓壓力", "D_D761_加壓電控閥調節", "D_D762_逆壓電控閥調節", "D_D783_加壓異常時間", "D_D792_下降時殘留壓力排放時間", "D_D793_自動運轉下降阻斷閥打開延遲", "D_D738_2nd手動上升高壓輔助ON", "D_D873_增壓閥下限壓力", "D_D875_異常時間"],
             "E區": ["E_D460_定位1次定位量", "E_D462_壓力1次定位量", "E_D466_Fit模式SUS接觸搜索1次定位量", "E_D464_Fit控制推進時1次定位量"]
         }
@@ -534,17 +539,17 @@ else:
                                     txt = f"🚨 已變更 ({b_label}: {v_b})" if is_diff else f"✅ 與{b_label}相同"
                                     st.markdown(f"<div class='{cls}'><small style='color:#555;'>{label}</small><br><b style='font-size:16px;'>{v_c}</b> <span style='float:right; font-size:12px;'>{txt}</span></div>", unsafe_allow_html=True)
                     
-                    # 📌 修正備註換行問題
                     m_rem = str(current.get('Remarks', '無')).replace('\n', '\n\n')
                     st.info(f"**最新客變備註：**\n\n{m_rem}", icon="📝")
 
         with tab_m2:
             fk = st.session_state.form_key
             with st.form(f"mach_log_f_{fk}", clear_on_submit=False):
+                # 📌 設備履歷加回日期選擇器
                 c1, c2, c3 = st.columns(3)
-                m_sn = c1.text_input("機台序號 SN (必填)", key=f"m_sn_{fk}")
-                m_cu = c2.selectbox("客戶廠區 (必填)", [""] + unique_cust, key=f"m_cu_{fk}")
-                m_dt = c3.date_input("記錄日期", datetime.now(tz_tw).date(), key=f"m_dt_{fk}")
+                m_dt = c1.date_input("記錄日期", datetime.now(tz_tw).date(), key=f"m_dt_{fk}")
+                m_sn = c2.text_input("機台序號 SN (必填)", key=f"m_sn_{fk}")
+                m_cu = c3.selectbox("客戶廠區 (必填)", [""] + unique_cust, key=f"m_cu_{fk}")
                 st.write("---")
                 
                 input_vals = {}
@@ -607,7 +612,8 @@ else:
                     if m_sn and m_cu:
                         with st.spinner("資料打包寫入中..."):
                             log_id = datetime.now(tz_tw).strftime("MACH-%y%m%d-%H%M")
-                            date_str = m_dt.strftime("%Y-%m-%d")
+                            # 📌 寫入時加上選擇的日期，並加上現在的時間
+                            date_str = m_dt.strftime("%Y-%m-%d") + datetime.now(tz_tw).strftime(" %H:%M")
                             
                             row_data = [log_id, date_str, st.session_state.user_name, m_cu, m_sn]
                             for k in MACHINE_PARAM_GROUPS["A區"]: row_data.append(input_vals[k])
