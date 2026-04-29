@@ -118,7 +118,8 @@ def load_data(mode):
 
 st.markdown("""
 <style>
-.glide-card { background-color: #ffffff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 5px; border-left: 6px solid #FFA726; }
+/* 📌 修正 Dark Mode 隱形字體問題：強制設定 color: #333333 */
+.glide-card { background-color: #ffffff; color: #333333; padding: 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); margin-bottom: 5px; border-left: 6px solid #FFA726; }
 .glide-title { font-size: 16px; font-weight: 700; color: #333333; margin-bottom: 4px; }
 .glide-subtitle { font-size: 13px; color: #555555; margin-bottom: 10px; line-height: 1.4; }
 .glide-tag { background-color: #FFF3E0; color: #E65100; padding: 3px 8px; border-radius: 12px; font-size: 11px; display: inline-block; margin-right: 4px; margin-bottom: 6px;}
@@ -225,7 +226,6 @@ else:
                     st.download_button("📥 單筆匯出", data=pd.DataFrame([row]).to_csv(index=False).encode('utf-8-sig'), file_name=f"{row['Log_ID']}.csv", key=f"dl_m_{row['Log_ID']}")
                 with c_card:
                     photo_html = f'<img src="{row["Photo_URL"]}" class="glide-img">' if "Photo_URL" in row and str(row["Photo_URL"]).startswith("http") else ""
-                    # 📌 解決 HTML 換行消失的問題，將 \n 轉為 <br>
                     v_issue = str(row["Issue_Desc"]).replace('\n', '<br>')
                     v_sol = str(row["Solution"]).replace('\n', '<br>')
                     st.markdown(f'<div class="glide-card"><div class="glide-title">{row["Component"]} <span style="font-size:12px; color:#999;">({row["Log_ID"]})</span></div><div class="glide-tag">📅 {row["Date"]}</div><div class="glide-tag">🏢 {row["Customer"]}</div><div class="glide-tag">⚙️ {row["Machine_Model"]}</div><div class="glide-tag-user">👤 {row.get("Engineer", "")}</div><br><b>狀況：</b><br>{v_issue}<br><br><b>💡 解法：</b><br>{v_sol}{photo_html}</div>', unsafe_allow_html=True)
@@ -320,7 +320,6 @@ else:
                     p_blk = f"<div style='background-color:#F9F9F9; padding:8px; border-radius:6px; font-size:12px; color:#555;'>{'<br><br>'.join(blk)}</div>" if blk else ""
                     s_blk = f"<div class='glide-subtitle'><b>基材/膜材</b><br>{h_sub}</div>" if h_sub else ""
 
-                    # 📌 解決 HTML 換行消失的問題
                     v_rem = str(row["Remarks"]).replace('\n', '<br>')
                     v_fb = str(row["Feedback"]).replace('\n', '<br>')
 
@@ -486,7 +485,7 @@ else:
                             st.cache_data.clear(); st.success("更新成功！")
 
     # ---------------------------------------------------------
-    # 模式 C：⚙️ 設備機械履歷 (100% 同步 HMI 畫面排版 - 對齊 63 欄位)
+    # 模式 C：⚙️ 設備機械履歷
     # ---------------------------------------------------------
     elif app_mode == "⚙️ 設備機械履歷":
         MACHINE_PARAM_GROUPS = {
@@ -497,7 +496,7 @@ else:
             "E區": ["E_D460_定位1次定位量", "E_D462_壓力1次定位量", "E_D466_Fit模式SUS接觸搜索1次定位量", "E_D464_Fit控制推進時1次定位量"]
         }
 
-        tab_m1, tab_m2 = st.tabs(["🔍 參數客變比對", "➕ 紀錄機台現況 (100% 畫面排版對應)"])
+        tab_m1, tab_m2 = st.tabs(["🔍 參數客變比對", "➕ 紀錄機台現況"])
         
         with tab_m1:
             search_sn = st.text_input("🔍 輸入機台序號 (SN) 查詢：", placeholder="例如: CVP-1500-001")
@@ -535,13 +534,12 @@ else:
                                     txt = f"🚨 已變更 ({b_label}: {v_b})" if is_diff else f"✅ 與{b_label}相同"
                                     st.markdown(f"<div class='{cls}'><small style='color:#555;'>{label}</small><br><b style='font-size:16px;'>{v_c}</b> <span style='float:right; font-size:12px;'>{txt}</span></div>", unsafe_allow_html=True)
                     
-                    # 📌 解決備註的換行問題
+                    # 📌 修正備註換行問題
                     m_rem = str(current.get('Remarks', '無')).replace('\n', '\n\n')
                     st.info(f"**最新客變備註：**\n\n{m_rem}", icon="📝")
 
         with tab_m2:
             fk = st.session_state.form_key
-            st.info("💡 填寫介面已 100% 還原 HMI 畫面分佈，包含您提供的 A 到 BK 共 63 個正確欄位。")
             with st.form(f"mach_log_f_{fk}", clear_on_submit=False):
                 c1, c2, c3 = st.columns(3)
                 m_sn = c1.text_input("機台序號 SN (必填)", key=f"m_sn_{fk}")
@@ -555,7 +553,6 @@ else:
                     label = f"{parts[1]} {parts[2]}" if len(parts) >= 3 else parts[1]
                     input_vals[k] = st.text_input(label, key=f"m_i_{k}_{fk}")
 
-                # 📍 畫面 A
                 with st.expander("📍 畫面 A：機械參數 A (伺服與極限)", expanded=True):
                     colA1, colA2, colA3 = st.columns(3)
                     with colA1:
@@ -568,7 +565,6 @@ else:
                         st.markdown("<div class='hmi-title'>▌ 右半部 (壓力與時間)</div>", unsafe_allow_html=True)
                         for k in ["A_D452_壓力異常限值", "A_D170_真空大氣開放時間", "A_D854_Film咬合保持"]: mk_input(k)
 
-                # 📍 畫面 B 
                 with st.expander("📍 畫面 B：機械參數 B (馬達與傳送)", expanded=True):
                     colB1, colB2, colB3 = st.columns(3)
                     with colB1:
@@ -581,7 +577,6 @@ else:
                         st.markdown("<div class='hmi-title'>▌ 入料傳送</div>", unsafe_allow_html=True)
                         for k in ["B_D714_加速時間", "B_D715_減速時間", "B_D716_Film送帶速度", "B_D717_工序時間", "B_D718_傳送部擋板停止速度", "B_D328_入口異常時間", "B_D514、520_自動運行中擋板上升延遲"]: mk_input(k)
 
-                # 📍 畫面 D 
                 with st.expander("📍 畫面 D：機械參數 D (壓合台)", expanded=True):
                     colD1, colD2 = st.columns(2)
                     with colD1:
@@ -591,7 +586,6 @@ else:
                         st.markdown("<div class='hmi-title'>▌ 2nd 壓合台</div>", unsafe_allow_html=True)
                         for k in MACHINE_PARAM_GROUPS["D2區"]: mk_input(k)
 
-                # 📍 畫面 E
                 with st.expander("📍 畫面 E：機械參數 E (定位)", expanded=True):
                     st.markdown("<div class='hmi-title'>▌ 4軸伺服壓合 重要數據</div>", unsafe_allow_html=True)
                     colE1, colE2 = st.columns(2)
