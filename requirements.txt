@@ -1,5 +1,7 @@
-streamlit
-pandas
-gspread
-requests
+streamlit>=1.49.0
+Authlib>=1.3.2
+yfinance
 plotly
+pandas
+numpy
+requests
